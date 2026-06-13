@@ -26,6 +26,7 @@ let package = Package(
                 "AudioPlayback",
                 "AppSettings",
                 "TTSModule",
+                "AppCore",
             ]
         )
     ],
@@ -48,6 +49,16 @@ let package = Package(
             dependencies: ["SpeechCore", "TextRouting"]
         ),
 
+        // Composition root (the headless "brain"): builds providers from config and wires
+        // capture → route → speak. The app target adds only UI + remote-dep implementations.
+        .target(
+            name: "AppCore",
+            dependencies: [
+                "SpeechCore", "TextRouting", "SelectionCapture",
+                "Providers", "AudioPlayback", "AppSettings", "TTSModule",
+            ]
+        ),
+
         // Tests
         .testTarget(name: "SpeechCoreTests", dependencies: ["SpeechCore"]),
         .testTarget(name: "TextRoutingTests", dependencies: ["TextRouting"]),
@@ -56,5 +67,9 @@ let package = Package(
         .testTarget(name: "AudioPlaybackTests", dependencies: ["AudioPlayback"]),
         .testTarget(name: "AppSettingsTests", dependencies: ["AppSettings"]),
         .testTarget(name: "TTSModuleTests", dependencies: ["TTSModule", "SpeechCore", "TextRouting"]),
+        .testTarget(
+            name: "AppCoreTests",
+            dependencies: ["AppCore", "SpeechCore", "TextRouting", "SelectionCapture", "AppSettings"]
+        ),
     ]
 )
