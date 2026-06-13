@@ -31,6 +31,12 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var providerConfigs: [ProviderConfig] = []
     @Published private(set) var activeProviderID: String = ProviderConfig.systemDefault.id
 
+    /// Voices fetched from a provider's catalog endpoint (currently ElevenLabs `/v1/voices`), shown in
+    /// the editor so the user can pick a voice id instead of typing it. Keyed to the profile they were
+    /// fetched for so a stale list isn't shown against a different profile.
+    @Published private(set) var fetchedVoices: [Voice] = []
+    @Published private(set) var fetchedVoicesProviderID: String?
+
     init(capturer: SelectionCapturing) {
         let settings = UserDefaultsSettingsStore()
         let secrets = KeychainSecretStore()
@@ -150,7 +156,7 @@ final class AppEnvironment: ObservableObject {
             return ProviderConfig(
                 id: id, kind: .elevenLabs, name: "ElevenLabs",
                 apiKeyKeychainRef: "apikey.\(id)", model: "eleven_multilingual_v2",
-                voice: "", format: .mp3, speed: 1.0, capabilities: ProviderCapabilities()
+                voice: "", format: .pcm, speed: 1.0, capabilities: ProviderCapabilities()
             )
         }
     }
@@ -212,6 +218,28 @@ final class AppEnvironment: ObservableObject {
                 status = "Ready"
             } catch {
                 status = "Test failed: \(error)"
+            }
+        }
+    }
+
+    // MARK: - Voice catalog
+
+    /// Fetch the provider's voice catalog (ElevenLabs `/v1/voices`) so the editor can offer a picker.
+    /// Best-effort: adapters fall back to their preset voices on failure, so this never throws to the UI.
+    func refreshVoices(for config: ProviderConfig) {
+        status = "Fetching voices for \(config.name)…"
+        let secrets = secretStore
+        Task {
+            do {
+                let provider = try ProviderFactory.makeProvider(from: config, secrets: secrets)
+                let voices = try await provider.availableVoices()
+                fetchedVoices = voices
+                fetchedVoicesProviderID = config.id
+                status = voices.isEmpty ? "No voices returned" : "Loaded \(voices.count) voices"
+            } catch {
+                fetchedVoices = []
+                fetchedVoicesProviderID = config.id
+                status = "Couldn't fetch voices: \(error)"
             }
         }
     }

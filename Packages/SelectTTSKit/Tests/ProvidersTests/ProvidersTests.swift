@@ -81,4 +81,80 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
             XCTAssertEqual(error as? SpeechProviderError, .missingAPIKey)
         }
     }
+
+    func testOutputFormatIsAppendedAsQuery() throws {
+        let req = try builder.makeRequest(
+            apiKey: "xi-key", voiceID: "voice123", text: "hi", outputFormat: "pcm_24000"
+        )
+        let components = URLComponents(url: try XCTUnwrap(req.url), resolvingAgainstBaseURL: false)
+        XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "output_format" })?.value, "pcm_24000")
+    }
+
+    func testVoiceListRequestShape() throws {
+        let req = try builder.makeVoiceListRequest(apiKey: "xi-key")
+        XCTAssertEqual(req.url?.absoluteString, "https://api.elevenlabs.io/v1/voices")
+        XCTAssertEqual(req.httpMethod, "GET")
+        XCTAssertEqual(req.value(forHTTPHeaderField: "xi-api-key"), "xi-key")
+    }
+
+    func testVoiceListRequestThrowsWithoutKey() {
+        XCTAssertThrowsError(try builder.makeVoiceListRequest(apiKey: "")) { error in
+            XCTAssertEqual(error as? SpeechProviderError, .missingAPIKey)
+        }
+    }
+}
+
+final class ElevenLabsOutputFormatTests: XCTestCase {
+    func testStreamableFormatsRequestHeaderlessPCM() {
+        for format in [AudioFormat.pcm, .wav] {
+            let resolved = ElevenLabsOutputFormat.resolve(format)
+            XCTAssertEqual(resolved.token, "pcm_24000")
+            XCTAssertEqual(resolved.pcm, .openAIpcm) // 24 kHz / 16-bit / signed LE / mono
+        }
+    }
+
+    func testCompressedFormatsCarryNoPCMLayout() {
+        XCTAssertEqual(ElevenLabsOutputFormat.resolve(.mp3).token, "mp3_44100_128")
+        XCTAssertNil(ElevenLabsOutputFormat.resolve(.mp3).pcm)
+        XCTAssertEqual(ElevenLabsOutputFormat.resolve(.opus).token, "opus_48000_128")
+        XCTAssertNil(ElevenLabsOutputFormat.resolve(.opus).pcm)
+        for format in [AudioFormat.aac, .flac, .m4a] {
+            XCTAssertEqual(ElevenLabsOutputFormat.resolve(format).token, "mp3_44100_128")
+            XCTAssertNil(ElevenLabsOutputFormat.resolve(format).pcm)
+        }
+    }
+}
+
+final class ElevenLabsVoiceListTests: XCTestCase {
+    func testDecodesVoiceIDNameAndLabels() throws {
+        let json = """
+        { "voices": [
+            { "voice_id": "abc123", "name": "Rachel", "labels": { "gender": "female", "language": "en" } },
+            { "voice_id": "def456", "name": "Josh", "labels": { "gender": "male" } }
+        ] }
+        """.data(using: .utf8)!
+
+        let voices = try ElevenLabsVoiceList.decode(json)
+        XCTAssertEqual(voices.count, 2)
+        XCTAssertEqual(voices[0].id, "abc123")
+        XCTAssertEqual(voices[0].name, "Rachel")
+        XCTAssertEqual(voices[0].language, "en")
+        XCTAssertEqual(voices[0].gender, .female)
+        XCTAssertEqual(voices[1].id, "def456")
+        XCTAssertEqual(voices[1].gender, .male)
+        XCTAssertNil(voices[1].language)
+    }
+
+    func testFallsBackToVoiceIDWhenNameMissing() throws {
+        let json = #"{ "voices": [ { "voice_id": "xyz" } ] }"#.data(using: .utf8)!
+        let voices = try ElevenLabsVoiceList.decode(json)
+        XCTAssertEqual(voices.count, 1)
+        XCTAssertEqual(voices[0].name, "xyz")
+        XCTAssertNil(voices[0].gender)
+    }
+
+    func testThrowsOnMalformedJSON() {
+        let json = #"{ "not_voices": [] }"#.data(using: .utf8)!
+        XCTAssertThrowsError(try ElevenLabsVoiceList.decode(json))
+    }
 }

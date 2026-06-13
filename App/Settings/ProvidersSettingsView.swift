@@ -75,14 +75,34 @@ struct ProvidersSettingsView: View {
             if draft.kind != .system {
                 TextField("Model", text: bind(\.model))
             }
-            TextField(draft.kind == .elevenLabs ? "Voice ID" : "Voice", text: bind(\.voice))
+
+            HStack {
+                TextField(draft.kind == .elevenLabs ? "Voice ID" : "Voice", text: bind(\.voice))
+                if draft.kind == .elevenLabs {
+                    Button("Fetch Voices") { save(); env.refreshVoices(for: draft) }
+                }
+            }
+            if draft.kind == .elevenLabs,
+               env.fetchedVoicesProviderID == draft.id, !env.fetchedVoices.isEmpty {
+                Menu("Pick a fetched voice (\(env.fetchedVoices.count))") {
+                    ForEach(env.fetchedVoices) { voice in
+                        Button(voice.name) { draft.voice = voice.id }
+                    }
+                }
+                .fixedSize()
+            }
 
             Picker("Format", selection: $draft.format) {
                 ForEach(AudioFormat.allCases, id: \.self) { format in
                     Text(format.rawValue.uppercased()).tag(format)
                 }
             }
-            if !draft.format.isStreamable {
+            if draft.kind == .elevenLabs {
+                Text("ElevenLabs streams as PCM (low latency). WAV maps to PCM; MP3/other formats are "
+                    + "fetched but won't play through the streaming engine yet.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if !draft.format.isStreamable {
                 Text("⚠︎ \(draft.format.rawValue.uppercased()) isn't streamed yet — use WAV or PCM for "
                     + "low-latency playback.")
                     .font(.footnote).foregroundStyle(.orange)

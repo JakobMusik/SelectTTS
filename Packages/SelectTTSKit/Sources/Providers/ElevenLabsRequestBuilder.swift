@@ -42,4 +42,17 @@ public struct ElevenLabsRequestBuilder: Sendable {
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
         return urlRequest
     }
+
+    /// `GET {baseURL}/voices` — the catalog endpoint (auth via `xi-api-key`, decoded by
+    /// `ElevenLabsVoiceList`).
+    public func makeVoiceListRequest(
+        baseURL: URL = defaultBaseURL,
+        apiKey: String
+    ) throws -> URLRequest {
+        guard !apiKey.isEmpty else { throw SpeechProviderError.missingAPIKey }
+        var urlRequest = URLRequest(url: baseURL.appendingPathComponent("voices"))
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+        return urlRequest
+    }
 }

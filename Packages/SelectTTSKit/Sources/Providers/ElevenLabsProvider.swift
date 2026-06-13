@@ -30,34 +30,49 @@ public struct ElevenLabsProvider: SpeechProvider {
     }
 
     public func availableVoices() async throws -> [Voice] {
-        // Voices come from a separate `GET /v1/voices` endpoint; wired in M4. Profiles can preload.
-        staticVoices
+        // `GET {baseURL}/voices`; fall back to any preloaded profile voices if the key is absent or
+        // the call fails, so the picker stays usable rather than throwing.
+        guard !apiKey.isEmpty else { return staticVoices }
+        do {
+            let request = try builder.makeVoiceListRequest(baseURL: baseURL, apiKey: apiKey)
+            let (data, response) = try await session.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw SpeechProviderError.httpStatus(http.statusCode, body: nil)
+            }
+            let voices = try ElevenLabsVoiceList.decode(data)
+            return voices.isEmpty ? staticVoices : voices
+        } catch {
+            return staticVoices
+        }
     }
 
     public func synthesize(_ request: SpeechRequest) -> AsyncThrowingStream<AudioChunk, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
+                    // Request headerless PCM for streamable formats so the player can consume the bytes
+                    // directly; compressed tokens (pcm == nil) take the non-streaming/decode path.
+                    let (token, pcm) = ElevenLabsOutputFormat.resolve(request.format)
                     let urlRequest = try builder.makeRequest(
                         baseURL: baseURL, apiKey: apiKey,
-                        voiceID: request.voice, text: request.text, modelID: request.model
+                        voiceID: request.voice, text: request.text, modelID: request.model,
+                        outputFormat: token
                     )
                     let (bytes, response) = try await session.bytes(for: urlRequest)
                     if let http = response as? HTTPURLResponse,
                        !(200..<300).contains(http.statusCode) {
                         throw SpeechProviderError.httpStatus(http.statusCode, body: nil)
                     }
-                    // ElevenLabs returns compressed audio by default; carry raw bytes (decode path).
                     var buffer = Data()
                     let flushThreshold = 16 * 1024
                     for try await byte in bytes {
                         buffer.append(byte)
                         if buffer.count >= flushThreshold {
-                            continuation.yield(AudioChunk(data: buffer))
+                            continuation.yield(AudioChunk(data: buffer, pcmFormat: pcm))
                             buffer.removeAll(keepingCapacity: true)
                         }
                     }
-                    if !buffer.isEmpty { continuation.yield(AudioChunk(data: buffer)) }
+                    if !buffer.isEmpty { continuation.yield(AudioChunk(data: buffer, pcmFormat: pcm)) }
                     continuation.yield(.terminal)
                     continuation.finish()
                 } catch {
