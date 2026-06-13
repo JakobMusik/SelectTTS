@@ -13,12 +13,15 @@ struct MenuContent: View {
             Text("⚠︎ Accessibility not granted — open Settings")
         }
 
-        Button("Speak Selection") { environment.speakSelection() }
-        Button("Speak Sample (test voice)") { environment.speakSample() }
+        // Note: capturing the *selection* must be triggered by the global hotkey — opening this menu
+        // makes SelectTTS frontmost, so there is no live selection to read. The menu speaks the
+        // clipboard instead.
+        Button("Speak Clipboard") { environment.speakClipboard() }
         Button("Stop") { environment.stopSpeaking() }
 
         Divider()
 
+        Text("Tip: select text, then press your global shortcut to speak it.")
         Text("Active voice: \(environment.activeProviderName)")
 
         SettingsLink {

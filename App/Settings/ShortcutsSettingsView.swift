@@ -1,38 +1,53 @@
 import SwiftUI
 import KeyboardShortcuts
 
-/// Global hotkey recorder + Accessibility permission status (§10). Lives in its own file so the
-/// KeyboardShortcuts import stays isolated.
+/// Global hotkey recorder + Accessibility permission status (§10).
+///
+/// Deliberately NOT a `Form`: `KeyboardShortcuts.Recorder` is an NSSearchField-backed control, and
+/// inside a grouped Form its field overlaps the label column. A plain VStack with an explicit label
+/// lays it out cleanly.
 struct ShortcutsSettingsView: View {
     @EnvironmentObject private var environment: AppEnvironment
 
     var body: some View {
-        Form {
-            Section("Global Shortcut") {
-                KeyboardShortcuts.Recorder("Speak selection:", name: .speakSelection)
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Global Shortcut").font(.headline)
+                HStack(spacing: 12) {
+                    Text("Speak selection:")
+                    KeyboardShortcuts.Recorder(for: .speakSelection)
+                }
+                Text("Select text in any app, then press this shortcut to hear it.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
-            Section("Permissions") {
-                LabeledContent("Accessibility") {
-                    Label(
-                        environment.accessibilityTrusted ? "Granted" : "Not granted",
-                        systemImage: environment.accessibilityTrusted
-                            ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(environment.accessibilityTrusted ? .green : .orange)
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Permissions").font(.headline)
+                HStack(spacing: 8) {
+                    Image(systemName: environment.accessibilityTrusted
+                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(environment.accessibilityTrusted ? .green : .orange)
+                    Text("Accessibility: \(environment.accessibilityTrusted ? "Granted" : "Not granted")")
                 }
                 HStack {
                     Button("Request…") { environment.requestAccessibilityPermission() }
                     Button("Open Settings") { environment.openAccessibilitySettings() }
                     Button("Re-check") { environment.refreshPermissions() }
                 }
-                Text("Accessibility lets SelectTTS read selected text in most apps and post the copy "
-                    + "shortcut. Browser web selections also use Automation, prompted per-app on first use. "
+                Text("Accessibility lets SelectTTS read selected text and post the copy shortcut. "
+                    + "Browser web selections also use Automation, prompted per-app on first use. "
                     + "After granting, you may need to relaunch SelectTTS.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+
+            Spacer()
         }
-        .formStyle(.grouped)
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

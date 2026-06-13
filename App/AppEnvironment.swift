@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 import AppCore
 import AppSettings
 import AudioPlayback
@@ -72,8 +73,28 @@ final class AppEnvironment: ObservableObject {
         }
     }
 
+    /// Speak the current clipboard text. Unlike selection capture this works from the menu, since
+    /// opening the menu makes SelectTTS frontmost (so there is no live selection to read) but the
+    /// pasteboard persists.
+    func speakClipboard() {
+        guard let text = NSPasteboard.general.string(forType: .string),
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            status = "Clipboard is empty"
+            return
+        }
+        status = "Speaking…"
+        Task {
+            do {
+                try await router.route(TextInput(text: text, trigger: .menuBar))
+                status = "Ready"
+            } catch {
+                status = describe(error)
+            }
+        }
+    }
+
     /// Speak a fixed sample through the active provider (no selection needed) — handy for testing a
-    /// voice without selecting text.
+    /// voice without selecting text. Used by the Settings "Speak a sample" button.
     func speakSample() {
         status = "Speaking…"
         Task {
