@@ -5,7 +5,7 @@ import SwiftUI
 @main
 struct SelectTTSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var environment = AppEnvironment()
+    @StateObject private var environment = AppEnvironment(capturer: SelectedTextKitCapturer())
 
     var body: some Scene {
         MenuBarExtra("SelectTTS", systemImage: "speaker.wave.2.fill") {

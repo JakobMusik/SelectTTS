@@ -27,12 +27,14 @@ final class PCMConverterTests: XCTestCase {
         let first = acc.append(Data([0x00])) // half a sample
         XCTAssertTrue(first.isEmpty)
         XCTAssertTrue(acc.hasPendingByte)
-        // Second chunk completes the first sample (0x0100 = 256) plus one full sample (0x0200 = 512).
-        let second = acc.append(Data([0x01, 0x00, 0x02]))
+        // Second chunk: completes the first sample (0x0100 = 256), one full sample (0x0200 = 512),
+        // and a trailing odd byte (0x03) that must be carried forward.
+        // Combined buffer = [0x00, 0x01, 0x00, 0x02, 0x03] = 5 bytes -> 2 samples + 1 leftover.
+        let second = acc.append(Data([0x01, 0x00, 0x02, 0x03]))
         XCTAssertEqual(second.count, 2)
         XCTAssertEqual(second[0], 256.0 / 32768.0, accuracy: 1e-6)
         XCTAssertEqual(second[1], 512.0 / 32768.0, accuracy: 1e-6)
-        XCTAssertTrue(acc.hasPendingByte) // trailing 0x02 carried
+        XCTAssertTrue(acc.hasPendingByte) // trailing 0x03 carried
     }
 }
 

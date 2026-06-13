@@ -3,6 +3,8 @@ import Foundation
 /// The strategy that produced (or would produce) a selection. Mirrors SelectedTextKit's enum so the
 /// app can swap in a SelectedTextKit-backed implementation behind this protocol (§5.2).
 public enum CaptureStrategy: String, Sendable, Equatable, Codable {
+    /// The chained default (accessibility → menu action) — SelectedTextKit's recommended mode.
+    case auto
     case accessibility
     case appleScript
     case menuAction

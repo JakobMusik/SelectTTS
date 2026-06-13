@@ -3,6 +3,8 @@ import SwiftUI
 /// Settings window scaffold. Panes fill in over the increments: General · Modules · Providers ·
 /// Shortcuts · Permissions/About (§9).
 struct SettingsView: View {
+    @EnvironmentObject private var environment: AppEnvironment
+
     var body: some View {
         TabView {
             GeneralSettingsView()
@@ -11,13 +13,14 @@ struct SettingsView: View {
             PlaceholderPane(text: "Provider profiles arrive in increment 3.")
                 .tabItem { Label("Providers", systemImage: "person.2") }
 
-            PlaceholderPane(text: "Global hotkey & permissions arrive in increment 2.")
+            ShortcutsSettingsView()
                 .tabItem { Label("Shortcuts", systemImage: "command") }
 
             AboutSettingsView()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 460, height: 280)
+        .frame(width: 480, height: 320)
+        .onAppear { environment.refreshPermissions() }
     }
 }
 

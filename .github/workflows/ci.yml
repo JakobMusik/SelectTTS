@@ -24,6 +24,21 @@ jobs:
         working-directory: Packages/SelectTTSKit
         run: swift test
 
+  app-build:
+    name: Build app
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build (signing disabled)
+        run: |
+          xcodebuild -project SelectTTS.xcodeproj -scheme SelectTTS \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO build
+
   lint:
     name: Lint (informational)
     runs-on: macos-14
