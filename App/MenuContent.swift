@@ -11,7 +11,11 @@ struct MenuContent: View {
         Text("SelectTTS — \(environment.status)")
 
         if !environment.accessibilityTrusted {
-            Text("⚠︎ Accessibility not granted — open Settings")
+            // Clickable: jump straight to System Settings ▸ Privacy & Security ▸ Accessibility (the
+            // grant toggle) rather than the intermediate OS prompt or the app's own Settings window.
+            Button("⚠︎ Grant Accessibility in System Settings…") {
+                environment.openAccessibilitySettings()
+            }
         }
 
         // Note: capturing the *selection* must be triggered by the global hotkey — opening this menu
