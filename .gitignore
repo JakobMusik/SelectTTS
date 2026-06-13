@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+*.xcscmblueprint
+*.xccheckout
+build/
+
+# Secrets / signing (never commit)
+*.p12
+*.cer
+*.mobileprovision
+**/secrets/
+
+# Editor
+.idea/
+*.swp

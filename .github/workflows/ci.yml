@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & test cores
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Build
+        working-directory: Packages/SelectTTSKit
+        run: swift build -v
+      - name: Test
+        working-directory: Packages/SelectTTSKit
+        run: swift test
+
+  lint:
+    name: Lint (informational)
+    runs-on: macos-14
+    # Non-gating until M5 hardens the style config.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: brew install swiftlint swiftformat
+      - name: SwiftFormat (lint mode)
+        run: swiftformat --lint .
+      - name: SwiftLint
+        run: swiftlint lint --quiet

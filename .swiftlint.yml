@@ -1,0 +1,19 @@
+# SwiftLint configuration — see https://github.com/realm/SwiftLint
+excluded:
+  - .build
+  - Packages/SelectTTSKit/.build
+
+disabled_rules:
+  - todo            # tracked in .planning instead
+  - trailing_comma  # SwiftFormat manages commas
+
+line_length:
+  warning: 120
+  error: 200
+
+identifier_name:
+  min_length: 1     # allow short names like `id`, `a`, `b`, `c` in tests/math
+  excluded: [id, x, y, a, b, c, v, n]
+
+type_name:
+  min_length: 3
