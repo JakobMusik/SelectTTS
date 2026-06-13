@@ -5,6 +5,7 @@ import AppCore
 import AppSettings
 import AudioPlayback
 import SelectionCapture
+import SpeechCore
 import TextRouting
 
 /// The app's composition root. Instantiates the cores from `SelectTTSKit` and wires them together;
@@ -25,10 +26,14 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var status: String = "Ready"
     @Published private(set) var accessibilityTrusted: Bool = AccessibilityAuthorization.isTrusted
 
+    /// Provider profiles + the active selection, mirrored for the UI. Mutations write through to the
+    /// settings store; the TTS pipeline reads the store, so edits take effect immediately.
+    @Published private(set) var providerConfigs: [ProviderConfig] = []
+    @Published private(set) var activeProviderID: String = ProviderConfig.systemDefault.id
+
     init(capturer: SelectionCapturing) {
-        // Inc 3 swaps these for Defaults-backed settings and a Keychain secret store.
         let settings = UserDefaultsSettingsStore()
-        let secrets = InMemorySecretStore()
+        let secrets = KeychainSecretStore()
         self.settingsStore = settings
         self.secretStore = secrets
 
@@ -48,10 +53,21 @@ final class AppEnvironment: ObservableObject {
         self.router = router
         self.coordinator = CaptureSpeakCoordinator(capturer: capturer, router: router)
 
+        // Load persisted profiles; guarantee the permanent offline system profile is present.
+        var configs = settings.loadProviderConfigs()
+        if !configs.contains(where: { $0.id == ProviderConfig.systemDefault.id }) {
+            configs.insert(.systemDefault, at: 0)
+        }
+        self.providerConfigs = configs
+        self.activeProviderID = settings.loadActiveProviderID() ?? configs.first?.id ?? ProviderConfig.systemDefault.id
+
         registerHotkey()
     }
 
-    var activeProviderName: String { settingsStore.activeConfig().name }
+    var activeProviderName: String {
+        providerConfigs.first(where: { $0.id == activeProviderID })?.name
+            ?? ProviderConfig.systemDefault.name
+    }
 
     // MARK: - Actions
 
@@ -115,6 +131,91 @@ final class AppEnvironment: ObservableObject {
         status = "Ready"
     }
 
+    // MARK: - Provider profiles
+
+    /// A new profile pre-filled with sensible defaults for its kind.
+    func makeNewProvider(kind: ProviderKind) -> ProviderConfig {
+        let id = UUID().uuidString
+        switch kind {
+        case .system:
+            return ProviderConfig(id: id, kind: .system, name: "System Voice")
+        case .openAICompatible:
+            return ProviderConfig(
+                id: id, kind: .openAICompatible, name: "OpenAI",
+                baseURLString: "https://api.openai.com/v1", apiKeyKeychainRef: "apikey.\(id)",
+                model: "gpt-4o-mini-tts", voice: "marin", format: .wav, speed: 1.0,
+                capabilities: .openAI
+            )
+        case .elevenLabs:
+            return ProviderConfig(
+                id: id, kind: .elevenLabs, name: "ElevenLabs",
+                apiKeyKeychainRef: "apikey.\(id)", model: "eleven_multilingual_v2",
+                voice: "", format: .mp3, speed: 1.0, capabilities: ProviderCapabilities()
+            )
+        }
+    }
+
+    func upsertProvider(_ config: ProviderConfig) {
+        if let index = providerConfigs.firstIndex(where: { $0.id == config.id }) {
+            providerConfigs[index] = config
+        } else {
+            providerConfigs.append(config)
+        }
+        persistConfigs()
+    }
+
+    func deleteProvider(_ id: String) {
+        guard id != ProviderConfig.systemDefault.id else { return } // permanent
+        providerConfigs.removeAll { $0.id == id }
+        if activeProviderID == id {
+            setActiveProvider(providerConfigs.first?.id ?? ProviderConfig.systemDefault.id)
+        }
+        persistConfigs()
+    }
+
+    func setActiveProvider(_ id: String) {
+        activeProviderID = id
+        settingsStore.saveActiveProviderID(id)
+    }
+
+    // MARK: - Secrets
+
+    func hasStoredKey(for config: ProviderConfig) -> Bool {
+        guard let ref = config.apiKeyKeychainRef else { return false }
+        let stored = (try? secretStore.secret(for: ref)) ?? nil
+        return !(stored ?? "").isEmpty
+    }
+
+    func storeKey(_ key: String, for config: ProviderConfig) {
+        guard let ref = config.apiKeyKeychainRef else { return }
+        try? secretStore.set(key, for: ref)
+    }
+
+    // MARK: - Test a profile
+
+    /// Speak a short sample through a specific profile (not necessarily the active one), so the user
+    /// can verify an endpoint/key before switching to it.
+    func testProvider(_ config: ProviderConfig) {
+        status = "Testing \(config.name)…"
+        let secrets = secretStore
+        let player = player
+        Task {
+            do {
+                let provider = try ProviderFactory.makeProvider(from: config, secrets: secrets)
+                let request = ProviderFactory.makeRequest(
+                    text: "This is a test of \(config.name).", config: config
+                )
+                for try await chunk in provider.synthesize(request) {
+                    try await player.enqueue(chunk)
+                }
+                await player.finish()
+                status = "Ready"
+            } catch {
+                status = "Test failed: \(error)"
+            }
+        }
+    }
+
     // MARK: - Permissions
 
     func refreshPermissions() {
@@ -131,6 +232,10 @@ final class AppEnvironment: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func persistConfigs() {
+        settingsStore.saveProviderConfigs(providerConfigs)
+    }
 
     private func registerHotkey() {
         SpeakSelectionShortcut.register { [weak self] in

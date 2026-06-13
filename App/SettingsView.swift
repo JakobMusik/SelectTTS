@@ -10,7 +10,7 @@ struct SettingsView: View {
             GeneralSettingsView()
                 .tabItem { Label("General", systemImage: "gearshape") }
 
-            PlaceholderPane(text: "Provider profiles arrive in increment 3.")
+            ProvidersSettingsView()
                 .tabItem { Label("Providers", systemImage: "person.2") }
 
             ShortcutsSettingsView()
@@ -19,7 +19,7 @@ struct SettingsView: View {
             AboutSettingsView()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 480, height: 320)
+        .frame(width: 520, height: 440)
         .onAppear { environment.refreshPermissions() }
     }
 }
@@ -46,15 +46,5 @@ private struct AboutSettingsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
-    }
-}
-
-private struct PlaceholderPane: View {
-    let text: String
-    var body: some View {
-        Text(text)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding()
     }
 }
