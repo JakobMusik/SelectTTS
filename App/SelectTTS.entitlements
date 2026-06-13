@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  No App Sandbox (decision D1): selection capture needs to read other apps'
+	  Accessibility trees and send Apple Events, which the sandbox forbids.
+
+	  Accessibility-API *client* use needs NO entitlement (TCC-gated at runtime).
+	  Sending Apple Events to other apps under the hardened runtime needs the
+	  entitlement below (paired with NSAppleEventsUsageDescription in Info.plist).
+	-->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>

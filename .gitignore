@@ -14,6 +14,9 @@ DerivedData/
 *.xccheckout
 build/
 
+# XcodeGen-generated project (source of truth is project.yml — decision D12)
+/SelectTTS.xcodeproj/
+
 # Secrets / signing (never commit)
 *.p12
 *.cer
