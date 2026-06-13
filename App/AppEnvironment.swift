@@ -223,6 +223,9 @@ final class AppEnvironment: ObservableObject {
     }
 
     func requestAccessibilityPermission() {
+        // Bring the app forward so the system permission dialog appears in front (accessory apps are
+        // not active by default).
+        NSApp.activate(ignoringOtherApps: true)
         AccessibilityAuthorization.prompt()
         refreshPermissions()
     }

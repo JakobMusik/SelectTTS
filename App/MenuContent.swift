@@ -5,6 +5,7 @@ import AppKit
 /// transport controls arrive in later increments.
 struct MenuContent: View {
     @EnvironmentObject private var environment: AppEnvironment
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Text("SelectTTS — \(environment.status)")
@@ -24,8 +25,11 @@ struct MenuContent: View {
         Text("Tip: select text, then press your global shortcut to speak it.")
         Text("Active voice: \(environment.activeProviderName)")
 
-        SettingsLink {
-            Text("Settings…")
+        // Activate first so the Settings window comes to the front — an accessory (LSUIElement) app
+        // isn't active by default, so SettingsLink/openSettings would otherwise open it behind.
+        Button("Settings…") {
+            NSApp.activate(ignoringOtherApps: true)
+            openSettings()
         }
         .keyboardShortcut(",", modifiers: .command)
 
