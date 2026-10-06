@@ -6,7 +6,7 @@ ElevenLabs is **not** OpenAI-shaped in three load-bearing ways: the voice lives 
 auth is a custom header, and voices come from a separate listing endpoint.
 
 ```http
-POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}
+POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream?output_format=pcm_24000
 xi-api-key: $ELEVENLABS_API_KEY
 Content-Type: application/json
 ```
@@ -14,22 +14,32 @@ Content-Type: application/json
 ```json
 {
   "text": "The text that will get converted into speech.",
-  "model_id": "eleven_multilingual_v2"
+  "model_id": "eleven_multilingual_v2",
+  "voice_settings": { "speed": 1.1 }
 }
 ```
 
 | Aspect | Verified detail |
 |--------|-----------------|
-| Endpoint | `POST /v1/text-to-speech/{voice_id}` — `voice_id` is a **required path parameter** |
-| Auth | `xi-api-key` HTTP header; Bearer tokens **not** a supported method |
+| Endpoint | `POST /v1/text-to-speech/{voice_id}` (buffered file, has `content-length`) and `POST /v1/text-to-speech/{voice_id}/stream` (chunked as generated). Same body/query. `voice_id` is a **required path parameter** |
+| Auth | `xi-api-key` HTTP header; Bearer tokens **not** a supported method. Keys can be scope-restricted (e.g. a key without `user_read` gets 401 `missing_permissions` on `/v1/user/*`) |
+| Hosts | `https://api.elevenlabs.io` (default), `https://api.us.elevenlabs.io`, data residency `https://api.{eu,in,sg}.residency.elevenlabs.io` |
 | `text` | Required body field |
-| `model_id` | Optional, **default `eleven_multilingual_v2`** |
-| Voice discovery | Separate **Get voices** endpoint lists available `voice_id`s |
-| Response | Binary audio (`application/octet-stream`) |
-| Streaming | Dedicated `/v1/text-to-speech/{voice_id}/stream` endpoint exists (fetched as source; details not among surviving verified claims — re-verify before implementing) |
+| `model_id` | Optional, **default `eleven_multilingual_v2`**. Live `GET /v1/models` (2026-10-07): `eleven_v4`, `eleven_v4_turbo`, `eleven_v3`, `eleven_multilingual_v2` (10k chars), `eleven_flash_v2_5` / `eleven_turbo_v2_5` (40k), `eleven_flash_v2` / `eleven_turbo_v2` (30k). Per-model cap = `maximum_text_length_per_request` |
+| Speed | `voice_settings.speed`, **0.7–1.2** (outside → 400 `invalid_voice_settings`) |
+| `output_format` | Query param, default `mp3_44100_128`. `pcm_{8000…48000}`, `mp3_*`, `opus_48000_*`, `ulaw_8000`, `alaw_8000`; the non-stream endpoint also offers `wav_*`. `pcm_44100` needs Pro tier (403 otherwise); `pcm_24000` works on any tier and is headerless 16-bit LE mono |
+| Voice discovery | `GET /v2/voices?page_size=100[&next_page_token=…]` → `{voices, has_more, next_page_token, total_count}`; `GET /v1/voices` is now under "Legacy". Voices carry `labels` (`gender`, `accent`, `language`, …) and `verified_languages[].locale` (BCP-47, e.g. `en-GB`) |
+| Errors | JSON `detail`: an object `{status, message, …}` (401 `invalid_api_key`, 404 `voice_not_found`, 400 `model_not_found` / `invalid_voice_settings`), a 422 list `[{loc, msg, type}]`, or a string (`"Not Found"` for an empty voice id) |
+| Response headers | `request-id`, `character-cost`, `x-trace-id` |
+| Continuity | `previous_text`/`next_text` or `previous_request_ids`/`next_request_ids` (≤ 3) stitch multi-request audio; not used yet |
 
-**Adapter shape for SelectTTS** (`ElevenLabsProvider`): config `{apiKeyRef, voiceID, modelID,
-outputFormat}`; implement `availableVoices()` via Get-voices; map `SpeechRequest` → path+body.
+Measured 2026-10-07 (pcm_24000, ~470 chars, `eleven_flash_v2_5`): time-to-first-byte **0.87 s on
+`/stream` vs 1.45 s** on the buffered endpoint, and the gap grows with text length.
+
+**Adapter in SelectTTS** (`ElevenLabsProvider`): base URL = API root (a trailing `/v1` is tolerated);
+`synthesize` → `/stream` with `output_format=pcm_24000` and `voice_settings.speed` (clamped, omitted at
+1.0); refuses compressed formats (the streaming player can only consume PCM); surfaces `detail`
+messages in `SpeechProviderError.httpStatus`; `availableVoices()` pages `/v2/voices`.
 
 ## Groq / Azure / Google / Deepgram — verified pass 2 (2026-06-13)
 

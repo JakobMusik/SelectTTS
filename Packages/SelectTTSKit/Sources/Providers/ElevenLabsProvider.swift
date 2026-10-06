@@ -13,6 +13,10 @@ public struct ElevenLabsProvider: SpeechProvider {
     private let session: URLSession
     private let builder = ElevenLabsRequestBuilder()
 
+    /// Upper bound on `/v2/voices` pages fetched (100 voices each) so a huge workspace can't stall
+    /// the picker.
+    static let maxVoicePages = 20
+
     public init(
         id: ProviderID = "elevenlabs",
         displayName: String = "ElevenLabs",
@@ -29,39 +33,55 @@ public struct ElevenLabsProvider: SpeechProvider {
         self.session = session
     }
 
+    /// Pages through `GET {root}/v2/voices`. Throws on a missing key or a failed request (with the
+    /// server's message) so the UI can say *why* the list is empty; the voice-id field stays editable.
     public func availableVoices() async throws -> [Voice] {
-        // `GET {baseURL}/voices`; fall back to any preloaded profile voices if the key is absent or
-        // the call fails, so the picker stays usable rather than throwing.
-        guard !apiKey.isEmpty else { return staticVoices }
-        do {
-            let request = try builder.makeVoiceListRequest(baseURL: baseURL, apiKey: apiKey)
+        var voices: [Voice] = []
+        var pageToken: String?
+        var pages = 0
+        repeat {
+            let request = try builder.makeVoiceListRequest(
+                baseURL: baseURL, apiKey: apiKey, pageToken: pageToken
+            )
             let (data, response) = try await session.data(for: request)
             if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                throw SpeechProviderError.httpStatus(http.statusCode, body: nil)
+                throw SpeechProviderError.httpStatus(
+                    http.statusCode, body: ElevenLabsErrorMessage.extract(from: data)
+                )
             }
-            let voices = try ElevenLabsVoiceList.decode(data)
-            return voices.isEmpty ? staticVoices : voices
-        } catch {
-            return staticVoices
-        }
+            let page = try ElevenLabsVoiceList.decodePage(data)
+            voices += page.voices
+            pageToken = page.hasMore ? page.nextPageToken : nil
+            pages += 1
+        } while pageToken != nil && pages < Self.maxVoicePages
+        return voices.isEmpty ? staticVoices : voices
     }
 
     public func synthesize(_ request: SpeechRequest) -> AsyncThrowingStream<AudioChunk, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    // Request headerless PCM for streamable formats so the player can consume the bytes
-                    // directly; compressed tokens (pcm == nil) take the non-streaming/decode path.
+                    // Request headerless PCM so the player can consume the bytes directly. Compressed
+                    // tokens can't be fed to the streaming player (it would play MP3/Opus bytes as raw
+                    // PCM — noise), so refuse them up front instead of spending credits (D5).
                     let (token, pcm) = ElevenLabsOutputFormat.resolve(request.format)
+                    guard let pcm else {
+                        throw SpeechProviderError.unsupported(
+                            "ElevenLabs \(request.format.rawValue.uppercased()) output can't be played "
+                                + "yet — choose PCM or WAV"
+                        )
+                    }
                     let urlRequest = try builder.makeRequest(
                         baseURL: baseURL, apiKey: apiKey,
                         voiceID: request.voice, text: request.text, modelID: request.model,
-                        outputFormat: token
+                        outputFormat: token, speed: request.speed
                     )
                     let (bytes, response) = try await session.bytes(for: urlRequest)
                     if let http = response as? HTTPURLResponse,
                        !(200..<300).contains(http.statusCode) {
-                        throw SpeechProviderError.httpStatus(http.statusCode, body: nil)
+                        throw SpeechProviderError.httpStatus(
+                            http.statusCode, body: await Self.errorMessage(from: bytes)
+                        )
                     }
                     var buffer = Data()
                     let flushThreshold = 16 * 1024
@@ -81,5 +101,19 @@ public struct ElevenLabsProvider: SpeechProvider {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// Reads (a bounded prefix of) an error response body and extracts its message.
+    private static func errorMessage(from bytes: URLSession.AsyncBytes) async -> String? {
+        var data = Data()
+        do {
+            for try await byte in bytes {
+                data.append(byte)
+                if data.count >= 64 * 1024 { break }
+            }
+        } catch {
+            // Keep whatever arrived; the status code alone is still reported.
+        }
+        return ElevenLabsErrorMessage.extract(from: data)
     }
 }

@@ -4,6 +4,7 @@ import AppKit
 import AppCore
 import AppSettings
 import AudioPlayback
+import Providers
 import SelectionCapture
 import SpeechCore
 import TextRouting
@@ -31,7 +32,7 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var providerConfigs: [ProviderConfig] = []
     @Published private(set) var activeProviderID: String = ProviderConfig.systemDefault.id
 
-    /// Voices fetched from a provider's catalog endpoint (currently ElevenLabs `/v1/voices`), shown in
+    /// Voices fetched from a provider's catalog endpoint (currently ElevenLabs `/v2/voices`), shown in
     /// the editor so the user can pick a voice id instead of typing it. Keyed to the profile they were
     /// fetched for so a stale list isn't shown against a different profile.
     @Published private(set) var fetchedVoices: [Voice] = []
@@ -155,8 +156,9 @@ final class AppEnvironment: ObservableObject {
         case .elevenLabs:
             return ProviderConfig(
                 id: id, kind: .elevenLabs, name: "ElevenLabs",
-                apiKeyKeychainRef: "apikey.\(id)", model: "eleven_multilingual_v2",
-                voice: "", format: .pcm, speed: 1.0, capabilities: ProviderCapabilities()
+                apiKeyKeychainRef: "apikey.\(id)", model: ElevenLabsRequestBuilder.defaultModelID,
+                voice: ElevenLabsRequestBuilder.defaultVoiceID, format: .pcm, speed: 1.0,
+                capabilities: ProviderCapabilities()
             )
         }
     }
@@ -224,8 +226,9 @@ final class AppEnvironment: ObservableObject {
 
     // MARK: - Voice catalog
 
-    /// Fetch the provider's voice catalog (ElevenLabs `/v1/voices`) so the editor can offer a picker.
-    /// Best-effort: adapters fall back to their preset voices on failure, so this never throws to the UI.
+    /// Fetch the provider's voice catalog (ElevenLabs `/v2/voices`) so the editor can offer a picker.
+    /// Failures (no key, bad key, missing permission) land in `status` with the server's message; the
+    /// voice field stays editable either way.
     func refreshVoices(for config: ProviderConfig) {
         status = "Fetching voices for \(config.name)…"
         let secrets = secretStore

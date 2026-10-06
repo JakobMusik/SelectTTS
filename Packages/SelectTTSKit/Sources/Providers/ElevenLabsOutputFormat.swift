@@ -8,7 +8,8 @@ import SpeechCore
 /// headerless `pcm_24000` — signed 16-bit LE, 24 kHz, mono, exactly `PCMStreamFormat.openAIpcm`.
 /// Tagging chunks with that layout makes `StreamingAudioPlayer` play them progressively instead of
 /// trying (and failing) to decode an MP3 byte stream (decision D5; the Inc 4 bug fix). Compressed
-/// tokens are still valid ElevenLabs requests but won't feed the low-latency path (pcm == nil).
+/// tokens are still valid ElevenLabs requests but can't feed the streaming player (pcm == nil), so
+/// `ElevenLabsProvider.synthesize` refuses them rather than play the bytes as noise.
 public enum ElevenLabsOutputFormat {
 
     /// `(query token, PCM layout for returned chunks)`. The layout is non-nil only for tokens that

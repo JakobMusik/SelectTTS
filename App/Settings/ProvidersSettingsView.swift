@@ -1,5 +1,6 @@
 import SwiftUI
 import AppSettings
+import Providers
 import SpeechCore
 
 /// Create/edit/delete provider profiles, store API keys in the Keychain, pick the active profile,
@@ -63,17 +64,30 @@ struct ProvidersSettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if draft.kind == .elevenLabs {
+                TextField("Base URL (default https://api.elevenlabs.io)", text: bind(\.baseURLString))
+                Text("Leave empty for the global API. Data-residency workspaces use their own host: "
+                    + "https://api.us.elevenlabs.io · https://api.eu.residency.elevenlabs.io · "
+                    + "https://api.in.residency.elevenlabs.io · https://api.sg.residency.elevenlabs.io")
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if draft.kind != .system {
                 SecureField("API Key", text: $apiKey)
-                Text(env.hasStoredKey(for: draft)
-                    ? "A key is stored in the Keychain. Type to replace it."
-                    : "No key stored. Local servers can use any value.")
+                Text(keyHint)
                     .font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if draft.kind != .system {
                 TextField("Model", text: bind(\.model))
+            }
+            if draft.kind == .elevenLabs {
+                Text("e.g. eleven_multilingual_v2 (default) · eleven_v4 (most expressive) · "
+                    + "eleven_v4_turbo or eleven_flash_v2_5 (lowest latency)")
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack {
@@ -98,9 +112,10 @@ struct ProvidersSettingsView: View {
                 }
             }
             if draft.kind == .elevenLabs {
-                Text("ElevenLabs streams as PCM (low latency). WAV maps to PCM; MP3/other formats are "
-                    + "fetched but won't play through the streaming engine yet.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                Text("ElevenLabs streams 24 kHz PCM (low latency); WAV maps to PCM. MP3/Opus/other "
+                    + "formats can't be played yet.")
+                    .font(.footnote)
+                    .foregroundStyle(draft.format.isStreamable ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
                     .fixedSize(horizontal: false, vertical: true)
             } else if !draft.format.isStreamable {
                 Text("⚠︎ \(draft.format.rawValue.uppercased()) isn't streamed yet — use WAV or PCM for "
@@ -110,7 +125,7 @@ struct ProvidersSettingsView: View {
 
             HStack {
                 Text("Speed")
-                Slider(value: $draft.speed, in: 0.25...4.0)
+                Slider(value: $draft.speed, in: speedRange)
                 Text(String(format: "%.2f×", draft.speed)).monospacedDigit().frame(width: 48)
             }
 
@@ -131,6 +146,20 @@ struct ProvidersSettingsView: View {
             }
         }
         .padding(.top, 4)
+    }
+
+    /// ElevenLabs only accepts 0.7–1.2× (`voice_settings.speed`); everything else takes 0.25–4×.
+    private var speedRange: ClosedRange<Double> {
+        draft.kind == .elevenLabs
+            ? ElevenLabsRequestBuilder.speedRange
+            : SpeechRequest.minSpeed...SpeechRequest.maxSpeed
+    }
+
+    private var keyHint: String {
+        if env.hasStoredKey(for: draft) { return "A key is stored in the Keychain. Type to replace it." }
+        return draft.kind == .elevenLabs
+            ? "No key stored. The key needs Text to Speech access (and Voices read for Fetch Voices)."
+            : "No key stored. Local servers can use any value."
     }
 
     // MARK: - State plumbing
