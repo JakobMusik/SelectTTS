@@ -19,7 +19,7 @@ struct SettingsView: View {
             AboutSettingsView()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 520, height: 440)
+        .frame(width: 520, height: 560)
         .onAppear { environment.refreshPermissions() }
     }
 }

@@ -24,7 +24,12 @@ final class AppEnvironment: ObservableObject {
     /// Held strongly so the audio engine survives between utterances.
     private let player: StreamingAudioPlayer
 
-    @Published private(set) var status: String = "Ready"
+    /// One-line status shown in the menu and at the bottom of the Settings panes.
+    @Published private(set) var status: String = "Ready" {
+        didSet { statusIsError = false }
+    }
+    /// Whether `status` reports a failure (set via `fail(_:)`), so views can style it.
+    @Published private(set) var statusIsError = false
     @Published private(set) var accessibilityTrusted: Bool = AccessibilityAuthorization.isTrusted
 
     /// Provider profiles + the active selection, mirrored for the UI. Mutations write through to the
@@ -38,9 +43,13 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var fetchedVoices: [Voice] = []
     @Published private(set) var fetchedVoicesProviderID: String?
 
-    init(capturer: SelectionCapturing) {
-        let settings = UserDefaultsSettingsStore()
-        let secrets = KeychainSecretStore()
+    /// `settings`/`secrets` default to the real stores; previews inject in-memory ones so they never
+    /// touch the user's defaults or Keychain.
+    init(
+        capturer: SelectionCapturing,
+        settings: SettingsStore = UserDefaultsSettingsStore(),
+        secrets: SecretStore = KeychainSecretStore()
+    ) {
         self.settingsStore = settings
         self.secretStore = secrets
 
@@ -91,7 +100,7 @@ final class AppEnvironment: ObservableObject {
                 try await coordinator.captureAndRoute(trigger: .hotkey)
                 status = "Speaking…"
             } catch {
-                status = describe(error)
+                fail(describe(error))
             }
         }
     }
@@ -111,7 +120,7 @@ final class AppEnvironment: ObservableObject {
                 try await router.route(TextInput(text: text, trigger: .menuBar))
                 status = "Ready"
             } catch {
-                status = describe(error)
+                fail(describe(error))
             }
         }
     }
@@ -128,7 +137,7 @@ final class AppEnvironment: ObservableObject {
                 ))
                 status = "Ready"
             } catch {
-                status = describe(error)
+                fail(describe(error))
             }
         }
     }
@@ -189,14 +198,25 @@ final class AppEnvironment: ObservableObject {
     // MARK: - Secrets
 
     func hasStoredKey(for config: ProviderConfig) -> Bool {
-        guard let ref = config.apiKeyKeychainRef else { return false }
-        let stored = (try? secretStore.secret(for: ref)) ?? nil
-        return !(stored ?? "").isEmpty
+        storedKeySuffix(for: config) != nil
+    }
+
+    /// The last four characters of the stored key (to tell keys apart without revealing them), or
+    /// nil when no key is stored for this profile.
+    func storedKeySuffix(for config: ProviderConfig) -> String? {
+        guard let ref = config.apiKeyKeychainRef,
+              let stored = (try? secretStore.secret(for: ref)) ?? nil,
+              !stored.isEmpty else { return nil }
+        return String(stored.suffix(4))
     }
 
     func storeKey(_ key: String, for config: ProviderConfig) {
         guard let ref = config.apiKeyKeychainRef else { return }
-        try? secretStore.set(key, for: ref)
+        do {
+            try secretStore.set(key.trimmingCharacters(in: .whitespacesAndNewlines), for: ref)
+        } catch {
+            fail("Couldn't save the API key to the Keychain: \(error)")
+        }
     }
 
     // MARK: - Test a profile
@@ -217,9 +237,9 @@ final class AppEnvironment: ObservableObject {
                     try await player.enqueue(chunk)
                 }
                 await player.finish()
-                status = "Ready"
+                status = "Test OK — \(config.name) is speaking"
             } catch {
-                status = "Test failed: \(error)"
+                fail("Test failed: \(error)")
             }
         }
     }
@@ -236,15 +256,23 @@ final class AppEnvironment: ObservableObject {
             do {
                 let provider = try ProviderFactory.makeProvider(from: config, secrets: secrets)
                 let voices = try await provider.availableVoices()
-                fetchedVoices = voices
-                fetchedVoicesProviderID = config.id
-                status = voices.isEmpty ? "No voices returned" : "Loaded \(voices.count) voices"
+                showFetchedVoices(voices, for: config.id)
+                let caveats = voices.filter { $0.note != nil }.count
+                status = voices.isEmpty ? "No voices returned"
+                    : "Loaded \(voices.count) voices"
+                        + (caveats > 0 ? " (\(caveats) marked ⚠︎ may not work on your plan)" : "")
             } catch {
                 fetchedVoices = []
                 fetchedVoicesProviderID = config.id
-                status = "Couldn't fetch voices: \(error)"
+                fail("Couldn't fetch voices: \(error)")
             }
         }
+    }
+
+    /// Publishes a fetched catalog for one profile's editor.
+    func showFetchedVoices(_ voices: [Voice], for providerID: String) {
+        fetchedVoices = voices
+        fetchedVoicesProviderID = providerID
     }
 
     // MARK: - Permissions
@@ -266,6 +294,11 @@ final class AppEnvironment: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func fail(_ message: String) {
+        status = message
+        statusIsError = true
+    }
 
     private func persistConfigs() {
         settingsStore.saveProviderConfigs(providerConfigs)

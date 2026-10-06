@@ -11,19 +11,24 @@ public struct Voice: Identifiable, Hashable, Codable, Sendable {
     public let language: String?
     public let quality: VoiceQuality?
     public let gender: VoiceGender?
+    /// A provider-supplied caveat shown next to the name when the voice may not work for everyone
+    /// (e.g. an ElevenLabs library voice, which free plans can't use through the API). nil = none.
+    public let note: String?
 
     public init(
         id: String,
         name: String,
         language: String? = nil,
         quality: VoiceQuality? = nil,
-        gender: VoiceGender? = nil
+        gender: VoiceGender? = nil,
+        note: String? = nil
     ) {
         self.id = id
         self.name = name
         self.language = language
         self.quality = quality
         self.gender = gender
+        self.note = note
     }
 }
 

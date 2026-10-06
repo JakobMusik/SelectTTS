@@ -17,6 +17,10 @@ public enum ElevenLabsVoiceList {
         public let nextPageToken: String?
     }
 
+    /// Caveat attached to voices copied from the shared Voice Library: ElevenLabs rejects them for
+    /// free plans with 402 `paid_plan_required` ("Free users cannot use library voices via the API").
+    public static let libraryVoiceNote = "Library voice — needs a paid plan"
+
     public static func decode(_ data: Data) throws -> [Voice] {
         try decodePage(data).voices
     }
@@ -29,7 +33,8 @@ public enum ElevenLabsVoiceList {
                 name: raw.name?.isEmpty == false ? raw.name! : raw.voiceID,
                 language: language(of: raw),
                 quality: nil,
-                gender: mapGender(raw.labels?["gender"])
+                gender: mapGender(raw.labels?["gender"]),
+                note: raw.sharingStatus == "copied" ? libraryVoiceNote : nil
             )
         }
         return Page(
@@ -74,12 +79,15 @@ public enum ElevenLabsVoiceList {
         let name: String?
         let labels: [String: String]?
         let verifiedLanguages: [VerifiedLanguage]?
+        /// `sharing.status` — `"copied"` marks a voice added from the shared Voice Library.
+        let sharingStatus: String?
 
         enum CodingKeys: String, CodingKey {
             case voiceID = "voice_id"
             case name
             case labels
             case verifiedLanguages = "verified_languages"
+            case sharing
         }
 
         init(from decoder: Decoder) throws {
@@ -92,7 +100,12 @@ public enum ElevenLabsVoiceList {
             verifiedLanguages = (try? container.decodeIfPresent(
                 [VerifiedLanguage].self, forKey: .verifiedLanguages
             )) ?? nil
+            sharingStatus = ((try? container.decodeIfPresent(Sharing.self, forKey: .sharing)) ?? nil)?.status
         }
+    }
+
+    private struct Sharing: Decodable {
+        let status: String?
     }
 
     private struct VerifiedLanguage: Decodable {

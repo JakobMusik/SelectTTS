@@ -193,6 +193,21 @@ final class ElevenLabsVoiceListTests: XCTestCase {
         XCTAssertNil(page.voices[1].language) // "american" is an accent, not a language tag
     }
 
+    func testLibraryVoicesCarryAPaidPlanNote() throws {
+        let json = """
+        { "voices": [
+            { "voice_id": "lib", "name": "Allison", "category": "professional",
+              "sharing": { "status": "copied", "original_voice_id": "orig" } },
+            { "voice_id": "pre", "name": "George", "category": "premade", "sharing": null },
+            { "voice_id": "own", "name": "Mine", "category": "cloned", "sharing": { "status": "enabled" } }
+        ] }
+        """.data(using: .utf8)!
+        let voices = try ElevenLabsVoiceList.decode(json)
+        XCTAssertEqual(voices[0].note, ElevenLabsVoiceList.libraryVoiceNote)
+        XCTAssertNil(voices[1].note)
+        XCTAssertNil(voices[2].note) // the user's own voice, merely shared — not a library copy
+    }
+
     func testOddMetadataDoesNotDropTheVoice() throws {
         let json = #"""
         { "voices": [ { "voice_id": "v1", "name": null,
