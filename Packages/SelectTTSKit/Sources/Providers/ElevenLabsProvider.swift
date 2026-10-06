@@ -12,6 +12,9 @@ public struct ElevenLabsProvider: SpeechProvider {
     private let staticVoices: [Voice]
     private let session: URLSession
     private let builder = ElevenLabsRequestBuilder()
+    /// Saved voice settings fetched for speed overrides, per voice id. Providers are rebuilt per
+    /// utterance (`TTSPipeline`), so this spans one utterance's chunks and never goes stale for long.
+    private let voiceSettingsCache = VoiceSettingsCache()
 
     /// Upper bound on `/v2/voices` pages fetched (100 voices each) so a huge workspace can't stall
     /// the picker.
@@ -71,10 +74,14 @@ public struct ElevenLabsProvider: SpeechProvider {
                                 + "yet — choose PCM or WAV"
                         )
                     }
+                    // A speed override must carry the voice's saved settings, or the API resets them.
+                    let stored = ElevenLabsRequestBuilder.speedOverride(for: request.speed) == nil
+                        ? nil
+                        : await storedVoiceSettings(for: request.voice)
                     let urlRequest = try builder.makeRequest(
                         baseURL: baseURL, apiKey: apiKey,
                         voiceID: request.voice, text: request.text, modelID: request.model,
-                        outputFormat: token, speed: request.speed
+                        outputFormat: token, speed: request.speed, storedVoiceSettings: stored
                     )
                     let (bytes, response) = try await session.bytes(for: urlRequest)
                     if let http = response as? HTTPURLResponse,
@@ -103,6 +110,21 @@ public struct ElevenLabsProvider: SpeechProvider {
         }
     }
 
+    /// The voice's saved settings, or nil if they can't be fetched (no key, no voice, a key without
+    /// voice-read permission, network) — the request then falls back to a speed-only override.
+    private func storedVoiceSettings(for voiceID: String) async -> ElevenLabsVoiceSettings? {
+        if let cached = voiceSettingsCache[voiceID] { return cached }
+        guard let request = try? builder.makeVoiceSettingsRequest(
+            baseURL: baseURL, apiKey: apiKey, voiceID: voiceID
+        ), let (data, response) = try? await session.data(for: request) else { return nil }
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { return nil }
+        guard let settings = try? JSONDecoder().decode(ElevenLabsVoiceSettings.self, from: data) else {
+            return nil
+        }
+        voiceSettingsCache[voiceID] = settings
+        return settings
+    }
+
     /// Reads (a bounded prefix of) an error response body and extracts its message.
     private static func errorMessage(from bytes: URLSession.AsyncBytes) async -> String? {
         var data = Data()
@@ -115,5 +137,22 @@ public struct ElevenLabsProvider: SpeechProvider {
             // Keep whatever arrived; the status code alone is still reported.
         }
         return ElevenLabsErrorMessage.extract(from: data)
+    }
+}
+
+/// Lock-protected voice-id → saved-settings map (the provider is a `Sendable` struct).
+private final class VoiceSettingsCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [String: ElevenLabsVoiceSettings] = [:]
+
+    subscript(voiceID: String) -> ElevenLabsVoiceSettings? {
+        get {
+            lock.lock(); defer { lock.unlock() }
+            return storage[voiceID]
+        }
+        set {
+            lock.lock(); defer { lock.unlock() }
+            storage[voiceID] = newValue
+        }
     }
 }

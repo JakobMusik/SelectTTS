@@ -31,11 +31,20 @@ public struct ElevenLabsRequestBuilder: Sendable {
         return url
     }
 
+    /// The `voice_settings.speed` to send for a requested speed — clamped to `speedRange` — or nil at
+    /// 1.0, where no `voice_settings` is sent and the voice's saved settings (incl. its speed) apply.
+    public static func speedOverride(for speed: Double) -> Double? {
+        let clamped = min(max(speed, speedRange.lowerBound), speedRange.upperBound)
+        return abs(clamped - 1.0) > 0.001 ? clamped : nil
+    }
+
     /// `POST {root}/v1/text-to-speech/{voiceID}/stream` — the streaming variant, which answers with
     /// chunked audio as it is generated (the non-`/stream` endpoint buffers the whole clip first).
     ///
-    /// `speed` is sent as `voice_settings.speed`, clamped to `speedRange`, and only when it differs
-    /// from 1.0 so the voice's stored settings stay in effect by default.
+    /// A non-1.0 `speed` is sent as `voice_settings` = `storedVoiceSettings` with `speed` replaced. The
+    /// API fills every field missing from (or null in) `voice_settings` with its *default*, not the
+    /// voice's saved value (verified 2026-10-07), so a speed-only object would reset a tuned voice's
+    /// stability/similarity/style. Without stored settings it falls back to speed only.
     public func makeRequest(
         baseURL: URL = defaultBaseURL,
         apiKey: String,
@@ -43,7 +52,8 @@ public struct ElevenLabsRequestBuilder: Sendable {
         text: String,
         modelID: String? = nil,
         outputFormat: String? = nil,
-        speed: Double = 1.0
+        speed: Double = 1.0,
+        storedVoiceSettings: ElevenLabsVoiceSettings? = nil
     ) throws -> URLRequest {
         guard !apiKey.isEmpty else { throw SpeechProviderError.missingAPIKey }
         let voiceID = voiceID.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -68,11 +78,31 @@ public struct ElevenLabsRequestBuilder: Sendable {
             "text": text,
             "model_id": model.isEmpty ? Self.defaultModelID : model,
         ]
-        let clampedSpeed = min(max(speed, Self.speedRange.lowerBound), Self.speedRange.upperBound)
-        if abs(clampedSpeed - 1.0) > 0.001 {
-            body["voice_settings"] = ["speed": clampedSpeed]
+        if let speedOverride = Self.speedOverride(for: speed) {
+            var settings = storedVoiceSettings ?? ElevenLabsVoiceSettings()
+            settings.speed = speedOverride
+            body["voice_settings"] = settings.jsonObject
         }
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
+        return urlRequest
+    }
+
+    /// `GET {root}/v1/voices/{voiceID}/settings` — the voice's saved settings (auth via `xi-api-key`).
+    public func makeVoiceSettingsRequest(
+        baseURL: URL = defaultBaseURL,
+        apiKey: String,
+        voiceID: String
+    ) throws -> URLRequest {
+        guard !apiKey.isEmpty else { throw SpeechProviderError.missingAPIKey }
+        let voiceID = voiceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !voiceID.isEmpty else { throw SpeechProviderError.missingVoice }
+        var urlRequest = URLRequest(url: Self.apiRoot(baseURL)
+            .appendingPathComponent("v1")
+            .appendingPathComponent("voices")
+            .appendingPathComponent(voiceID)
+            .appendingPathComponent("settings"))
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
         return urlRequest
     }
 

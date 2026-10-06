@@ -27,8 +27,10 @@ Content-Type: application/json
 | `text` | Required body field |
 | `model_id` | Optional, **default `eleven_multilingual_v2`**. Live `GET /v1/models` (2026-10-07): `eleven_v4`, `eleven_v4_turbo`, `eleven_v3`, `eleven_multilingual_v2` (10k chars), `eleven_flash_v2_5` / `eleven_turbo_v2_5` (40k), `eleven_flash_v2` / `eleven_turbo_v2` (30k). Per-model cap = `maximum_text_length_per_request` |
 | Speed | `voice_settings.speed`, **0.7–1.2** (outside → 400 `invalid_voice_settings`) |
+| `voice_settings` | Overrides the voice's saved settings for one request, but **any field missing or `null` gets the API default, not the saved value** (verified 2026-10-07 via `/v1/history` settings: speed-only and speed+nulls both reset stability/similarity/style/speaker-boost). To change only speed, send the saved settings (`GET /v1/voices/{id}/settings`) with `speed` replaced |
 | `output_format` | Query param, default `mp3_44100_128`. `pcm_{8000…48000}`, `mp3_*`, `opus_48000_*`, `ulaw_8000`, `alaw_8000`; the non-stream endpoint also offers `wav_*`. `pcm_44100` needs Pro tier (403 otherwise); `pcm_24000` works on any tier and is headerless 16-bit LE mono |
 | Voice discovery | `GET /v2/voices?page_size=100[&next_page_token=…]` → `{voices, has_more, next_page_token, total_count}`; `GET /v1/voices` is now under "Legacy". Voices carry `labels` (`gender`, `accent`, `language`, …) and `verified_languages[].locale` (BCP-47, e.g. `en-GB`) |
+| Plan limits | Free tier: library ("copied" professional) voices → 402 `paid_plan_required`; `pcm_44100` → 403 `output_format_not_allowed` |
 | Errors | JSON `detail`: an object `{status, message, …}` (401 `invalid_api_key`, 404 `voice_not_found`, 400 `model_not_found` / `invalid_voice_settings`), a 422 list `[{loc, msg, type}]`, or a string (`"Not Found"` for an empty voice id) |
 | Response headers | `request-id`, `character-cost`, `x-trace-id` |
 | Continuity | `previous_text`/`next_text` or `previous_request_ids`/`next_request_ids` (≤ 3) stitch multi-request audio; not used yet |
@@ -38,7 +40,7 @@ Measured 2026-10-07 (pcm_24000, ~470 chars, `eleven_flash_v2_5`): time-to-first-
 
 **Adapter in SelectTTS** (`ElevenLabsProvider`): base URL = API root (a trailing `/v1` is tolerated);
 `synthesize` → `/stream` with `output_format=pcm_24000` and `voice_settings.speed` (clamped, omitted at
-1.0); refuses compressed formats (the streaming player can only consume PCM); surfaces `detail`
+1.0; a non-1.0 speed is merged into the voice's fetched saved settings, falling back to speed-only); refuses compressed formats (the streaming player can only consume PCM); surfaces `detail`
 messages in `SpeechProviderError.httpStatus`; `availableVoices()` pages `/v2/voices`.
 
 ## Groq / Azure / Google / Deepgram — verified pass 2 (2026-06-13)

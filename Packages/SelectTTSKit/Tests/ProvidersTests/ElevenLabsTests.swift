@@ -49,6 +49,36 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
         XCTAssertNil(try speed(1.0))
     }
 
+    func testSpeedOverrideKeepsStoredVoiceSettings() throws {
+        let stored = ElevenLabsVoiceSettings(
+            stability: 0.2, similarityBoost: 0.9, style: 0.6, useSpeakerBoost: false, speed: 1.16
+        )
+        let req = try builder.makeRequest(
+            apiKey: "k", voiceID: "v", text: "hi", speed: 1.1, storedVoiceSettings: stored
+        )
+        let settings = try XCTUnwrap(try body(req)["voice_settings"] as? [String: Any])
+        XCTAssertEqual(settings["stability"] as? Double, 0.2)
+        XCTAssertEqual(settings["similarity_boost"] as? Double, 0.9)
+        XCTAssertEqual(settings["style"] as? Double, 0.6)
+        XCTAssertEqual(settings["use_speaker_boost"] as? Bool, false)
+        XCTAssertEqual(try XCTUnwrap(settings["speed"] as? Double), 1.1, accuracy: 1e-9)
+
+        // At 1.0 nothing is overridden, so the saved settings (incl. their own speed) apply as-is.
+        let normal = try builder.makeRequest(
+            apiKey: "k", voiceID: "v", text: "hi", speed: 1.0, storedVoiceSettings: stored
+        )
+        XCTAssertNil(try body(normal)["voice_settings"])
+    }
+
+    func testVoiceSettingsRequestShape() throws {
+        let req = try builder.makeVoiceSettingsRequest(
+            baseURL: URL(string: "https://api.elevenlabs.io/v1")!, apiKey: "k", voiceID: " v1d "
+        )
+        XCTAssertEqual(req.url?.absoluteString, "https://api.elevenlabs.io/v1/voices/v1d/settings")
+        XCTAssertEqual(req.httpMethod, "GET")
+        XCTAssertEqual(req.value(forHTTPHeaderField: "xi-api-key"), "k")
+    }
+
     func testBlankModelFallsBackToDefault() throws {
         let req = try builder.makeRequest(apiKey: "k", voiceID: "v", text: "hi", modelID: "  ")
         XCTAssertEqual(try body(req)["model_id"] as? String, ElevenLabsRequestBuilder.defaultModelID)
@@ -258,9 +288,49 @@ final class ElevenLabsProviderTests: XCTestCase {
         XCTAssertEqual(Data(chunks.filter { !$0.isFinal }.flatMap(\.data)), audio)
         XCTAssertTrue(chunks.filter { !$0.isFinal }.allSatisfy { $0.pcmFormat == .openAIpcm })
 
+        XCTAssertEqual(StubURLProtocol.requests.count, 1) // speed 1.0 → no saved-settings fetch
         let url = try XCTUnwrap(StubURLProtocol.requests.first?.url)
         XCTAssertEqual(url.path, "/v1/text-to-speech/voiceA/stream")
         XCTAssertEqual(url.query, "output_format=pcm_24000")
+    }
+
+    func testSpeedOverrideFetchesAndMergesSavedSettings() async throws {
+        let saved = #"{"stability":0.2,"use_speaker_boost":false,"similarity_boost":0.9,"style":0.6,"speed":1.0}"#
+        StubURLProtocol.respond { request in
+            request.httpMethod == "GET" ? (200, Data(saved.utf8)) : (200, Data(repeating: 0, count: 64))
+        }
+        _ = try await collect(provider().synthesize(
+            SpeechRequest(text: "hi", voice: "voiceA", format: .pcm, speed: 1.1)
+        ))
+
+        XCTAssertEqual(StubURLProtocol.requests.map(\.httpMethod), ["GET", "POST"])
+        XCTAssertEqual(StubURLProtocol.requests.first?.url?.path, "/v1/voices/voiceA/settings")
+        let sent = try XCTUnwrap(StubURLProtocol.bodies.last)
+        let settings = try XCTUnwrap(
+            (try JSONSerialization.jsonObject(with: sent) as? [String: Any])?["voice_settings"] as? [String: Any]
+        )
+        XCTAssertEqual(settings["stability"] as? Double, 0.2)
+        XCTAssertEqual(settings["style"] as? Double, 0.6)
+        XCTAssertEqual(settings["use_speaker_boost"] as? Bool, false)
+        XCTAssertEqual(try XCTUnwrap(settings["speed"] as? Double), 1.1, accuracy: 1e-9)
+    }
+
+    func testSpeedOverrideFallsBackToSpeedOnlyWhenSettingsUnavailable() async throws {
+        StubURLProtocol.respond { request in
+            request.httpMethod == "GET"
+                ? (401, Data(#"{"detail":{"status":"missing_permissions"}}"#.utf8))
+                : (200, Data(repeating: 0, count: 64))
+        }
+        _ = try await collect(provider().synthesize(
+            SpeechRequest(text: "hi", voice: "voiceA", format: .pcm, speed: 0.8)
+        ))
+
+        let sent = try XCTUnwrap(StubURLProtocol.bodies.last)
+        let settings = try XCTUnwrap(
+            (try JSONSerialization.jsonObject(with: sent) as? [String: Any])?["voice_settings"] as? [String: Any]
+        )
+        XCTAssertEqual(Set(settings.keys), ["speed"])
+        XCTAssertEqual(try XCTUnwrap(settings["speed"] as? Double), 0.8, accuracy: 1e-9)
     }
 
     func testSynthesizeSurfacesServerErrorMessage() async {
@@ -325,10 +395,17 @@ private final class StubURLProtocol: URLProtocol {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var handler: ((URLRequest) -> (Int, Data))?
     nonisolated(unsafe) private static var recorded: [URLRequest] = []
+    nonisolated(unsafe) private static var recordedBodies: [Data] = []
 
     static var requests: [URLRequest] {
         lock.lock(); defer { lock.unlock() }
         return recorded
+    }
+
+    /// Request bodies, in order (empty for body-less requests).
+    static var bodies: [Data] {
+        lock.lock(); defer { lock.unlock() }
+        return recordedBodies
     }
 
     static func respond(_ handler: @escaping (URLRequest) -> (Int, Data)) {
@@ -340,14 +417,17 @@ private final class StubURLProtocol: URLProtocol {
         lock.lock(); defer { lock.unlock() }
         handler = nil
         recorded = []
+        recordedBodies = []
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        let requestBody = Self.readBody(of: request)
         Self.lock.lock()
         Self.recorded.append(request)
+        Self.recordedBodies.append(requestBody)
         let handler = Self.handler
         Self.lock.unlock()
 
@@ -361,4 +441,18 @@ private final class StubURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    private static func readBody(of request: URLRequest) -> Data {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return Data() }
+        stream.open(); defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count <= 0 { break }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
 }
