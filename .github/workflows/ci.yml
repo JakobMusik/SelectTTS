@@ -26,13 +26,11 @@ jobs:
 
   app-build:
     name: Build app
-    runs-on: macos-14
+    # The committed project uses Xcode 16 synchronized folders (objectVersion 77), and the pinned
+    # KeyboardShortcuts 2.4.0 needs Swift tools 6.1 (Xcode 16.3+) — both too new for macos-14.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Generate project
-        run: xcodegen generate
       - name: Build (signing disabled)
         run: |
           xcodebuild -project SelectTTS.xcodeproj -scheme SelectTTS \

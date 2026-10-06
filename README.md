@@ -47,17 +47,15 @@ Xcode (macOS 14 deployment target).
 
 ## Building the app
 
-The Xcode project is generated from [`project.yml`](project.yml) with
-[XcodeGen](https://github.com/yonaskolb/XcodeGen) (decision D12):
+The Xcode project is committed; `App/` is a synchronized folder, so there is no generation step:
 
 ```sh
-brew install xcodegen      # one-time
-xcodegen generate          # writes SelectTTS.xcodeproj (gitignored)
 open SelectTTS.xcodeproj
 ```
 
-In Xcode, set your Development Team under **Signing & Capabilities**, then build & run the
-`SelectTTS` scheme. The app launches as a menu-bar item (no Dock icon). The current build is
+The project pins `DEVELOPMENT_TEAM` to a Personal Team so builds are signed with a stable
+Apple Development identity (an ad-hoc signature would lose the Accessibility grant on every
+rebuild); change it to your own Team ID if you clone this. Then build & run the `SelectTTS` scheme. The app launches as a menu-bar item (no Dock icon). The current build is
 increment 1: a menu-bar shell with a **Speak Sample** action that runs text through the offline
 system voice. Selection capture (global hotkey), provider profiles, and auto-update land in
 subsequent increments — see [`docs/implementation-plan.md`](docs/implementation-plan.md) §13 and

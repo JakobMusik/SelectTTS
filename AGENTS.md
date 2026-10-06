@@ -43,10 +43,8 @@ swift test --filter SpeechCoreTests.SentenceChunkerTests  # one class/case (rege
 # Type-check the cores without SwiftPM/Xcode (Command Line Tools only):
 ./scripts/typecheck-cores.sh
 
-# App — the .xcodeproj is GENERATED from project.yml (XcodeGen) and gitignored; never hand-edit it:
-brew install xcodegen          # one-time
-xcodegen generate              # writes SelectTTS.xcodeproj
-open SelectTTS.xcodeproj        # set Development Team in Signing & Capabilities, then run
+# App — SelectTTS.xcodeproj is committed (App/ is a synchronized folder; no generator):
+open SelectTTS.xcodeproj        # signs with the committed Personal Team; just run
 xcodebuild -project SelectTTS.xcodeproj -scheme SelectTTS \
   -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build   # headless app build (as CI does)
 
@@ -55,8 +53,9 @@ swiftformat --lint .
 swiftlint lint --quiet
 ```
 
-CI (`.github/workflows/ci.yml`, `macos-14`) runs three jobs: `swift test` on the cores, an
-XcodeGen + `xcodebuild` app build with signing disabled, and a non-gating lint pass.
+CI (`.github/workflows/ci.yml`) runs three jobs: `swift test` on the cores (`macos-14`), an
+`xcodebuild` app build with signing disabled (`macos-15`), and a non-gating lint pass. The repo
+has no remote yet, so CI has never actually run.
 
 ## Architecture
 
@@ -164,8 +163,14 @@ across the lock (Swift 6 data-race safety).
 
 ## Conventions & gotchas
 
-- **Do not hand-edit `SelectTTS.xcodeproj`** — it's generated and gitignored. Change build settings,
-  deployment target (macOS 14), or dependencies in `project.yml`, then `xcodegen generate`.
+- **`SelectTTS.xcodeproj` is committed and is the source of truth** (decision D12, amended). `App/`
+  is an Xcode 16 synchronized folder, so adding/renaming/deleting files under `App/` needs **no**
+  project edit. Change build settings, entitlements, Info.plist keys, or packages through Xcode (UI
+  or the Xcode MCP tools: `UpdateTargetBuildSetting`, `AddEntitlement`, `AddInfoPlist`) — don't
+  hand-edit `project.pbxproj`. Package pins live in the committed `Package.resolved`.
+- **Signing:** `DEVELOPMENT_TEAM` is the author's free Personal Team (Apple Development identity).
+  Keep a stable identity — an ad-hoc signature changes every build and silently voids the
+  Accessibility grant. `CODE_SIGNING_ALLOWED=NO` builds are fine for compile checks, not for use.
 - **Keep `SelectTTSKit` Apple-SDK-only.** A new external capability is wired as a protocol in the
   cores + a concrete impl in `App/`.
 - **Add a text module** = implement `TextModule` + register it in `AppEnvironment` (no dynamic
