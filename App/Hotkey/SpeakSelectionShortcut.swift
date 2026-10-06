@@ -10,7 +10,10 @@ extension KeyboardShortcuts.Name {
 /// Wraps KeyboardShortcuts registration so the rest of the app needn't import it.
 enum SpeakSelectionShortcut {
     static func register(action: @escaping () -> Void) {
+        let shortcut = KeyboardShortcuts.getShortcut(for: .speakSelection).map { "\($0)" } ?? "none"
+        Log.speak.info("registering speak-selection hotkey: \(shortcut, privacy: .public)")
         KeyboardShortcuts.onKeyUp(for: .speakSelection) {
+            Log.speak.info("speak-selection hotkey pressed")
             action()
         }
     }

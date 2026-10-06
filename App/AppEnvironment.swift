@@ -89,6 +89,7 @@ final class AppEnvironment: ObservableObject {
 
     /// Capture the current selection and speak it. The global hotkey and the menu both call this.
     func speakSelection() {
+        Log.speak.info("speakSelection (accessibility trusted: \(self.accessibilityTrusted, privacy: .public))")
         guard accessibilityTrusted else {
             status = "Grant Accessibility to read selected text"
             AccessibilityAuthorization.prompt()
@@ -97,9 +98,9 @@ final class AppEnvironment: ObservableObject {
         status = "Capturing…"
         Task {
             do {
-                try await coordinator.captureAndRoute(trigger: .hotkey)
-                status = "Speaking…"
+                report(try await coordinator.captureAndRoute(trigger: .hotkey))
             } catch {
+                Log.speak.error("speakSelection failed: \(String(describing: error), privacy: .public)")
                 fail(describe(error))
             }
         }
@@ -117,8 +118,7 @@ final class AppEnvironment: ObservableObject {
         status = "Speaking…"
         Task {
             do {
-                try await router.route(TextInput(text: text, trigger: .menuBar))
-                status = "Ready"
+                report(try await router.route(TextInput(text: text, trigger: .menuBar)))
             } catch {
                 fail(describe(error))
             }
@@ -131,11 +131,10 @@ final class AppEnvironment: ObservableObject {
         status = "Speaking…"
         Task {
             do {
-                try await router.route(TextInput(
+                report(try await router.route(TextInput(
                     text: "SelectTTS is ready. This sample is spoken by the active voice.",
                     trigger: .manual
-                ))
-                status = "Ready"
+                )))
             } catch {
                 fail(describe(error))
             }
@@ -307,6 +306,19 @@ final class AppEnvironment: ObservableObject {
     private func registerHotkey() {
         SpeakSelectionShortcut.register { [weak self] in
             Task { @MainActor in self?.speakSelection() }
+        }
+    }
+
+    /// The router keeps going when a module fails and returns the failures instead of throwing, so
+    /// they must be surfaced here — otherwise a provider error (bad key, 402, network) is silent.
+    private func report(_ outcome: RouteOutcome) {
+        if let failure = outcome.failures.first {
+            Log.speak.error("module \(failure.moduleID, privacy: .public) failed: \(failure.message, privacy: .public)")
+            fail("Couldn't speak via \(activeProviderName): \(failure.message)")
+        } else {
+            let provider = activeProviderName
+            Log.speak.info("spoken by \(outcome.handledBy, privacy: .public) via \(provider, privacy: .public)")
+            status = "Ready"
         }
     }
 

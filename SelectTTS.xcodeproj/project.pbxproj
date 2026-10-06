@@ -18,7 +18,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		6C13120F63B8B22C2CC56B29 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		6C13120F63B8B22C2CC56B29 /* Exceptions for "App" folder in "SelectTTS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -31,11 +31,7 @@
 		CAF5B9EC89A5253A1EA5F5C0 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				6C13120F63B8B22C2CC56B29 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
+				6C13120F63B8B22C2CC56B29 /* Exceptions for "App" folder in "SelectTTS" target */,
 			);
 			path = App;
 			sourceTree = "<group>";

@@ -3,27 +3,42 @@ import AppKit
 import SelectionCapture
 import SelectedTextKit
 
-/// Production `SelectionCapturing` backed by SelectedTextKit's `.auto` chain (accessibility → menu
-/// action, the README's "most reliable" mode), with AppleScript/⌘C fallbacks inside the library
-/// (§5.2). MIT-licensed, so no copyleft (D8). Behind our protocol so the cores stay decoupled.
+/// Production `SelectionCapturing` backed by SelectedTextKit (§5.2). MIT-licensed, so no copyleft
+/// (D8). Behind our protocol so the cores stay decoupled.
+///
+/// Uses the library's per-strategy chain rather than `.auto`: `.auto` only falls back to menu Copy
+/// when the Accessibility read returns *empty* text, but rethrows when it *fails* — and Electron
+/// apps (the Claude app, VS Code, Slack, …) answer the selected-text attribute with
+/// `AXError.noValue`, so `.auto` never reached the copy fallback there. `getSelectedText(strategies:)`
+/// moves on to the next strategy after any non-permission error. Both copy strategies restore the
+/// user's clipboard afterwards.
 struct SelectedTextKitCapturer: SelectionCapturing {
 
-    /// Strategy chain to try. `.auto` covers the common cases; the explicit list is available if we
-    /// want to tune ordering later.
-    let strategy: TextStrategy
+    /// Tried in order: Accessibility read → Edit ▸ Copy via the menu bar → simulated ⌘C.
+    let strategies: [TextStrategy]
 
-    init(strategy: TextStrategy = .auto) {
-        self.strategy = strategy
+    init(strategies: [TextStrategy] = [.accessibility, .menuAction, .shortcut]) {
+        self.strategies = strategies
     }
 
     func captureSelection() async throws -> CaptureResult {
-        let selected = try await SelectedTextManager.shared.getSelectedText(strategy: strategy)
+        let app = NSWorkspace.shared.frontmostApplication
+        let source = app?.bundleIdentifier ?? "unknown"
+        let selected: String?
+        do {
+            selected = try await SelectedTextManager.shared.getSelectedText(strategies: strategies)
+        } catch {
+            let reason = String(describing: error)
+            Log.capture.error("capture in \(source, privacy: .public) threw: \(reason, privacy: .public)")
+            throw error
+        }
         guard let text = selected,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
+            Log.capture.info("no selection captured in \(source, privacy: .public)")
             throw CaptureError.noSelection
         }
-        let app = NSWorkspace.shared.frontmostApplication
+        Log.capture.info("captured \(text.count, privacy: .public) chars from \(source, privacy: .public)")
         return CaptureResult(
             text: text,
             strategy: .auto,

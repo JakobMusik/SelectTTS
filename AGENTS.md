@@ -155,8 +155,10 @@ across the lock (Swift 6 data-race safety).
   then to an empty provider) so the app is always speakable.
 - **Secrets never live in the config** — only a Keychain reference string. Keys are stored via
   `SecretStore` → `KeychainSecretStore` (Security framework, service `com.selecttts.apikeys`).
-- **No App Sandbox** (D1). Capture uses SelectedTextKit's `.auto` chain (Accessibility → menu-bar
-  AXPress → AppleScript → simulated ⌘C). Permissions: **Accessibility** (TCC, no entitlement —
+- **No App Sandbox** (D1). Capture uses SelectedTextKit's `getSelectedText(strategies:)` chain
+  (Accessibility → menu-bar Edit ▸ Copy AXPress → simulated ⌘C; both copies restore the clipboard).
+  **Not `.auto`:** it rethrows when the Accessibility read *fails* instead of falling back, and
+  Electron apps (Claude, VS Code, Slack) answer with `AXError.noValue`. Permissions: **Accessibility** (TCC, no entitlement —
   often needs an app relaunch after granting) and, for the AppleScript browser path, **Automation**
   (needs the `com.apple.security.automation.apple-events` entitlement + `NSAppleEventsUsageDescription`).
   The hotkey uses NSEvent global monitoring → needs Accessibility, **not** Input Monitoring.
