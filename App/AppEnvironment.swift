@@ -32,6 +32,15 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var statusIsError = false
     @Published private(set) var accessibilityTrusted: Bool = AccessibilityAuthorization.isTrusted
 
+    /// True from the start of an utterance (capture → synthesis) until its audio has finished
+    /// playing or it was stopped. Drives the ⌥T toggle and the menu's Stop item.
+    @Published private(set) var isSpeaking = false
+    /// The current utterance; `stopSpeaking()` cancels it.
+    private var speakTask: Task<Void, Never>?
+    /// Teardown of the last stopped utterance. The next utterance waits for it, so a late `stop()`
+    /// from that teardown can't cut the new audio off.
+    private var stopTask: Task<Void, Never>?
+
     /// Provider profiles + the active selection, mirrored for the UI. Mutations write through to the
     /// settings store; the TTS pipeline reads the store, so edits take effect immediately.
     @Published private(set) var providerConfigs: [ProviderConfig] = []
@@ -87,7 +96,13 @@ final class AppEnvironment: ObservableObject {
 
     // MARK: - Actions
 
-    /// Capture the current selection and speak it. The global hotkey and the menu both call this.
+    /// The speak shortcut: speak the selection, or — if something is already speaking — stop it,
+    /// like macOS's own Speak Selection (press the key again to stop).
+    func toggleSpeakSelection() {
+        if isSpeaking { stopSpeaking() } else { speakSelection() }
+    }
+
+    /// Capture the current selection and speak it.
     func speakSelection() {
         Log.speak.info("speakSelection (accessibility trusted: \(self.accessibilityTrusted, privacy: .public))")
         guard accessibilityTrusted else {
@@ -95,14 +110,9 @@ final class AppEnvironment: ObservableObject {
             AccessibilityAuthorization.prompt()
             return
         }
-        status = "Capturing…"
-        Task {
-            do {
-                report(try await coordinator.captureAndRoute(trigger: .hotkey))
-            } catch {
-                Log.speak.error("speakSelection failed: \(String(describing: error), privacy: .public)")
-                fail(describe(error))
-            }
+        let coordinator = coordinator
+        beginSpeaking { [weak self] in
+            self?.report(try await coordinator.captureAndRoute(trigger: .hotkey))
         }
     }
 
@@ -115,35 +125,79 @@ final class AppEnvironment: ObservableObject {
             status = "Clipboard is empty"
             return
         }
-        status = "Speaking…"
-        Task {
-            do {
-                report(try await router.route(TextInput(text: text, trigger: .menuBar)))
-            } catch {
-                fail(describe(error))
-            }
+        let router = router
+        beginSpeaking { [weak self] in
+            self?.report(try await router.route(TextInput(text: text, trigger: .menuBar)))
         }
     }
 
     /// Speak a fixed sample through the active provider (no selection needed) — handy for testing a
     /// voice without selecting text. Used by the Settings "Speak a sample" button.
     func speakSample() {
-        status = "Speaking…"
-        Task {
-            do {
-                report(try await router.route(TextInput(
-                    text: "SelectTTS is ready. This sample is spoken by the active voice.",
-                    trigger: .manual
-                )))
-            } catch {
-                fail(describe(error))
-            }
+        let router = router
+        beginSpeaking { [weak self] in
+            self?.report(try await router.route(TextInput(
+                text: "SelectTTS is ready. This sample is spoken by the active voice.",
+                trigger: .manual
+            )))
         }
     }
 
+    /// Stop whatever is speaking — the menu's Stop, the optional stop shortcut, or the speak shortcut
+    /// pressed while speaking. Cancels synthesis too, so no later audio restarts playback.
     func stopSpeaking() {
-        Task { await player.stop() }
-        status = "Ready"
+        let wasSpeaking = speakTask != nil
+        haltCurrentSpeech()
+        if !wasSpeaking { Task { [player] in await player.stop() } }
+        Log.speak.info("stop (was speaking: \(wasSpeaking, privacy: .public))")
+        status = wasSpeaking ? "Stopped" : "Ready"
+    }
+
+    /// Runs one utterance as the tracked `speakTask`, replacing whatever is playing. `work` returns
+    /// once its audio has played (the sink's `finish()` waits for playback). Errors are shown via
+    /// `failure` (default: `describe`); a stop (cancellation) is silent.
+    private func beginSpeaking(
+        failure: (@MainActor (Error) -> String)? = nil,
+        _ work: @escaping @MainActor () async throws -> Void
+    ) {
+        haltCurrentSpeech()
+        let pendingStop = stopTask
+        let player = player
+        isSpeaking = true
+        status = "Speaking…"
+        speakTask = Task { [weak self] in
+            await pendingStop?.value
+            await player.stop() // a fresh engine and format for every utterance
+            do {
+                try Task.checkCancellation()
+                try await work()
+            } catch {
+                if Task.isCancelled || error is CancellationError { return } // stopped by the user
+                Log.speak.error("utterance failed: \(String(describing: error), privacy: .public)")
+                if let self { self.fail(failure?(error) ?? self.describe(error)) }
+            }
+            guard !Task.isCancelled else { return }
+            await player.stop() // release the audio device while idle
+            self?.isSpeaking = false
+            self?.speakTask = nil
+        }
+    }
+
+    /// Cancels the current utterance and silences it now, then stops the player once more after the
+    /// cancelled pipeline has unwound, dropping anything it enqueued in between.
+    private func haltCurrentSpeech() {
+        guard let task = speakTask else { return }
+        speakTask = nil
+        isSpeaking = false
+        task.cancel()
+        let player = player
+        let previousStop = stopTask
+        stopTask = Task {
+            await previousStop?.value
+            await player.stop()
+            await task.value
+            await player.stop()
+        }
     }
 
     // MARK: - Provider profiles
@@ -223,23 +277,21 @@ final class AppEnvironment: ObservableObject {
     /// Speak a short sample through a specific profile (not necessarily the active one), so the user
     /// can verify an endpoint/key before switching to it.
     func testProvider(_ config: ProviderConfig) {
-        status = "Testing \(config.name)…"
         let secrets = secretStore
         let player = player
-        Task {
-            do {
-                let provider = try ProviderFactory.makeProvider(from: config, secrets: secrets)
-                let request = ProviderFactory.makeRequest(
-                    text: "This is a test of \(config.name).", config: config
-                )
-                for try await chunk in provider.synthesize(request) {
-                    try await player.enqueue(chunk)
-                }
-                await player.finish()
-                status = "Test OK — \(config.name) is speaking"
-            } catch {
-                fail("Test failed: \(error)")
+        beginSpeaking(failure: { "Test failed: \($0)" }) { [weak self] in
+            self?.status = "Testing \(config.name)…"
+            let provider = try ProviderFactory.makeProvider(from: config, secrets: secrets)
+            let request = ProviderFactory.makeRequest(
+                text: "This is a test of \(config.name).", config: config
+            )
+            for try await chunk in provider.synthesize(request) {
+                try Task.checkCancellation()
+                try await player.enqueue(chunk)
             }
+            try Task.checkCancellation()
+            await player.finish() // returns once the sample has played
+            self?.status = "Test OK — \(config.name)"
         }
     }
 
@@ -304,9 +356,10 @@ final class AppEnvironment: ObservableObject {
     }
 
     private func registerHotkey() {
-        SpeakSelectionShortcut.register { [weak self] in
-            Task { @MainActor in self?.speakSelection() }
-        }
+        SpeakSelectionShortcut.register(
+            onSpeak: { [weak self] in Task { @MainActor in self?.toggleSpeakSelection() } },
+            onStop: { [weak self] in Task { @MainActor in self?.stopSpeaking() } }
+        )
     }
 
     /// The router keeps going when a module fails and returns the failures instead of throwing, so

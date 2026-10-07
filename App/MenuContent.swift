@@ -22,11 +22,12 @@ struct MenuContent: View {
         // makes SelectTTS frontmost, so there is no live selection to read. The menu speaks the
         // clipboard instead.
         Button("Speak Clipboard") { environment.speakClipboard() }
-        Button("Stop") { environment.stopSpeaking() }
+        Button("Stop Speaking") { environment.stopSpeaking() }
+            .disabled(!environment.isSpeaking)
 
         Divider()
 
-        Text("Tip: select text, then press your global shortcut to speak it.")
+        Text("Tip: select text, then press your global shortcut to speak it — press it again to stop.")
         Text("Active voice: \(environment.activeProviderName)")
 
         // Activate first so the Settings window comes to the front — an accessory (LSUIElement) app

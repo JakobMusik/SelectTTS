@@ -43,6 +43,11 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
             }
             utterance.rate = Self.mapRate(request.speed)
 
+            // Stop rendering when the consumer goes away (e.g. the user stopped playback).
+            continuation.onTermination = { [self] termination in
+                if case .cancelled = termination { self.synthesizer.stopSpeaking(at: .immediate) }
+            }
+
             self.synthesizer.write(utterance) { buffer in
                 guard let pcm = buffer as? AVAudioPCMBuffer, pcm.frameLength > 0 else {
                     continuation.yield(.terminal)

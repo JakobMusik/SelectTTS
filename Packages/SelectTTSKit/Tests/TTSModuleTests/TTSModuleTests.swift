@@ -105,6 +105,28 @@ final class TTSModuleTests: XCTestCase {
         XCTAssertEqual(sink.snapshot.enqueued, 0)
     }
 
+    func testCancelledPerformNeverEnqueuesAndStopsSink() async {
+        let provider = FakeProvider(chunksPerRequest: 3)
+        let sink = RecordingSink()
+        let module = makeModule(provider: provider, sink: sink)
+
+        // The task cancels itself before performing, as the app's Stop does mid-utterance.
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await module.perform(TextInput(text: "Hello world."))
+        }
+        do {
+            try await task.value
+            XCTFail("expected cancellation")
+        } catch {
+            XCTAssertTrue(error is CancellationError, "unexpected \(error)")
+        }
+        let snap = sink.snapshot
+        XCTAssertEqual(snap.enqueued, 0)
+        XCTAssertEqual(snap.finish, 0)
+        XCTAssertEqual(snap.stop, 1)
+    }
+
     func testProviderErrorStopsSinkAndRethrows() async {
         let provider = FakeProvider(error: BoomError())
         let sink = RecordingSink()

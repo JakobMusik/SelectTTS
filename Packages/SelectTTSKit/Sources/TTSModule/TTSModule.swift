@@ -43,11 +43,17 @@ public final class TTSModule: TextModule, @unchecked Sendable {
         let provider = providerProvider()
         do {
             for chunk in chunks {
+                try Task.checkCancellation()
                 let request = makeRequest(chunk)
                 for try await audio in provider.synthesize(request) {
+                    // Stop means stop: never hand the sink audio after cancellation (it would
+                    // restart playback the user just silenced).
+                    try Task.checkCancellation()
                     try await sink.enqueue(audio)
                 }
             }
+            try Task.checkCancellation()
+            // Returns once the audio has actually played (or the sink was stopped).
             await sink.finish()
         } catch {
             await sink.stop()

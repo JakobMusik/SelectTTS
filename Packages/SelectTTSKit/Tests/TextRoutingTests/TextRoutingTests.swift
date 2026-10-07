@@ -34,6 +34,14 @@ private final class FailingModule: TextModule, @unchecked Sendable {
     func perform(_ input: TextInput) async throws { throw BoomError() }
 }
 
+private final class CancelledModule: TextModule, @unchecked Sendable {
+    let id: ModuleID = "cancelled"
+    let displayName = "cancelled"
+    var isEnabled = true
+    func canHandle(_ input: TextInput) -> Bool { true }
+    func perform(_ input: TextInput) async throws { throw CancellationError() }
+}
+
 final class TextRouterTests: XCTestCase {
 
     func testDispatchesToEnabledWillingModules() async throws {
@@ -85,6 +93,16 @@ final class TextRouterTests: XCTestCase {
         let outcome = try await router.route(TextInput(text: "hi"))
         XCTAssertEqual(outcome.handledBy, ["ok"])
         XCTAssertEqual(outcome.failures.map(\.moduleID), ["boom"])
+    }
+
+    func testRethrowsCancellationInsteadOfRecordingAFailure() async {
+        let router = TextRouter(registry: ModuleRegistry([CancelledModule(), FakeModule(id: "later")]))
+        do {
+            _ = try await router.route(TextInput(text: "hi"))
+            XCTFail("expected cancellation")
+        } catch {
+            XCTAssertTrue(error is CancellationError, "unexpected \(error)")
+        }
     }
 
     func testRegistryRegisterAndLookup() {

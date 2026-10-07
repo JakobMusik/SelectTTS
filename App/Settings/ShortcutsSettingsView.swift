@@ -12,14 +12,23 @@ struct ShortcutsSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Global Shortcut").font(.headline)
-                HStack(spacing: 12) {
-                    Text("Speak selection:")
-                    KeyboardShortcuts.Recorder(for: .speakSelection)
+                Text("Global Shortcuts").font(.headline)
+                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 10) {
+                    GridRow {
+                        Text("Speak selection:").gridColumnAlignment(.trailing)
+                        KeyboardShortcuts.Recorder(for: .speakSelection)
+                    }
+                    GridRow {
+                        Text("Stop speaking:")
+                        KeyboardShortcuts.Recorder(for: .stopSpeaking)
+                    }
                 }
-                Text("Select text in any app, then press this shortcut to hear it.")
+                Text("Select text in any app, then press the speak shortcut to hear it. Press it again "
+                    + "while speaking to stop. The stop shortcut is optional — leave it empty unless you "
+                    + "want a dedicated key.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()

@@ -50,7 +50,8 @@ public final class TextRouter: Sendable {
     }
 
     /// Validates `input` against the policy, then performs each enabled, willing module.
-    /// Throws `RoutingRejection` if the input is filtered out or there is nothing enabled.
+    /// Throws `RoutingRejection` if the input is filtered out or there is nothing enabled, and
+    /// rethrows `CancellationError` when the routing task was cancelled (e.g. the user hit Stop).
     @discardableResult
     public func route(_ input: TextInput) async throws -> RouteOutcome {
         let trimmed = input.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -67,6 +68,9 @@ public final class TextRouter: Sendable {
             do {
                 try await module.perform(input)
                 handled.append(module.id)
+            } catch let cancellation as CancellationError {
+                // A user stop is not a module failure — propagate it so the caller can tell.
+                throw cancellation
             } catch {
                 failures.append(.init(moduleID: module.id, message: String(describing: error)))
             }
