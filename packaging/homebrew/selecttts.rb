@@ -1,6 +1,6 @@
 cask "selecttts" do
   version "0.1.0"
-  sha256 "92d97716652835a578a8219621b0e82884dfaaecf96ff50e4fa9d971c66eda8c"
+  sha256 "f9375cc2e5f48413bb242f2d564e2d9d27bea8db08e4ea2ca073943129a435a1"
 
   url "https://github.com/JakobMusik/SelectTTS/releases/download/v#{version}/SelectTTS-#{version}.dmg"
   name "SelectTTS"
