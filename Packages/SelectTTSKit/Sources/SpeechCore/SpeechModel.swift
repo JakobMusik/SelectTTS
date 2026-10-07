@@ -1,7 +1,7 @@
 import Foundation
 
 /// A synthesis model a provider offers (e.g. an ElevenLabs `model_id`). Like voices, model catalogs
-/// churn, so they are runtime data fetched from the provider (decision D4), never hard-coded.
+/// churn, so they are runtime data fetched from the provider, never hard-coded.
 public struct SpeechModel: Identifiable, Hashable, Codable, Sendable {
     /// The string sent back to the provider (`SpeechRequest.model`).
     public let id: String

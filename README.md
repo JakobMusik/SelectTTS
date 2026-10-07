@@ -43,9 +43,9 @@ Packages/SelectTTSKit/          # pure, UI-free, headless-testable cores (one ta
   Tests/                        # XCTest unit tests for the pure logic
 ```
 
-The app target depends on the cores plus remote SPM packages (SelectedTextKit, KeyboardShortcuts,
-Defaults, LaunchAtLogin-Modern, Sparkle) and injects their implementations through the protocols
-above (decisions D6/D10/D11).
+The app target depends on the cores plus remote SPM packages (SelectedTextKit, KeyboardShortcuts)
+and injects remote-backed implementations through the protocols above, so the cores stay
+Apple-SDK-only and `swift test` needs no network.
 
 ## Building & testing the cores
 

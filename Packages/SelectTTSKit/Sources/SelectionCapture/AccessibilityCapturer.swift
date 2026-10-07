@@ -6,7 +6,7 @@ import ApplicationServices
 import AppKit
 #endif
 
-/// The non-destructive first link of the capture chain (§5.1): read the focused element's selected
+/// The non-destructive first link of the capture chain: read the focused element's selected
 /// text via the system-wide Accessibility element. Instant, no clipboard side effects. Returns
 /// `noSelection` on the apps where AX selection is null (Safari/WebKit, Chrome without renderer a11y,
 /// Firefox, terminals, …) — the app then falls through to the SelectedTextKit chain.

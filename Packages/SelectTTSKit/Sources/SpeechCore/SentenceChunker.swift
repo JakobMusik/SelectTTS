@@ -2,8 +2,8 @@ import Foundation
 
 /// Splits long text into synthesis-sized chunks on sentence boundaries.
 ///
-/// Mandatory because OpenAI caps `input` at 4096 chars and selections routinely exceed that
-/// (decision in §7.1). The TTS module synthesizes chunk N+1 while chunk N plays.
+/// Mandatory because OpenAI caps `input` at 4096 chars and selections routinely exceed that. The
+/// TTS module synthesizes chunk N+1 while chunk N plays.
 ///
 /// Algorithm: segment into sentences (preferring the platform's sentence tokenizer, falling back to
 /// punctuation), then greedily pack sentences into chunks up to `maxCharacters`. A single sentence

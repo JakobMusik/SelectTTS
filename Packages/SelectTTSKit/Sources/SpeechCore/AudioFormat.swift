@@ -2,7 +2,7 @@ import Foundation
 
 /// Audio container/encoding requested from a provider and returned in the response body.
 ///
-/// For *streaming* playback SelectTTS requests `.wav` or `.pcm` (decision D5): both can be played
+/// For *streaming* playback SelectTTS requests `.wav` or `.pcm`: both can be played
 /// progressively without aligning to compressed frame boundaries. Compressed formats are supported
 /// for download/save but not for the low-latency streaming path.
 public enum AudioFormat: String, Codable, Sendable, CaseIterable {

@@ -9,8 +9,8 @@ public enum ProviderKind: String, Codable, Sendable, CaseIterable {
 }
 
 /// A named, user-created provider profile (e.g. "OpenAI", "My Kokoro box", "ElevenLabs"). Config is
-/// **data, not code** (D4): voices/models/formats are free text. Secrets are never stored here — only
-/// a Keychain reference (D… §9).
+/// **data, not code**: voices/models/formats are free text, because catalogs vary per backend and
+/// churn. Secrets are never stored here — only a Keychain reference.
 public struct ProviderConfig: Identifiable, Codable, Equatable, Sendable {
     public var id: String
     public var kind: ProviderKind

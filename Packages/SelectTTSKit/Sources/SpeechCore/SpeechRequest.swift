@@ -1,7 +1,7 @@
 import Foundation
 
 /// A single synthesis request. `voice`/`model` are free text — the active provider profile defines
-/// the catalog (decision D4). `speed` is clamped to the OpenAI-documented 0.25...4.0 range; whether
+/// the catalog. `speed` is clamped to the OpenAI-documented 0.25...4.0 range; whether
 /// a backend honors it is a per-profile capability flag.
 public struct SpeechRequest: Sendable, Equatable {
     public let text: String

@@ -4,7 +4,7 @@ import Security
 #endif
 
 /// Stores BYOK API keys. The app stores only a *reference* in `ProviderConfig`; the secret itself
-/// lives here (Keychain in production — §9). A small hand-rolled wrapper is preferred over the
+/// lives here (Keychain in production). A small hand-rolled wrapper is preferred over the
 /// effectively-unmaintained KeychainAccess library.
 public protocol SecretStore: AnyObject, Sendable {
     func set(_ secret: String, for reference: String) throws

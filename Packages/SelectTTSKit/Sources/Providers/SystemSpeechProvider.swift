@@ -4,7 +4,7 @@ import SpeechCore
 import AVFoundation
 #endif
 
-/// The offline, zero-config default (decision D3): `AVSpeechSynthesizer`, on-device, no API key, so
+/// The offline, zero-config default: `AVSpeechSynthesizer`, on-device, no API key, so
 /// the app speaks out of the box. Renders to PCM via `write(_:toBufferCallback:)` and yields the
 /// samples as `AudioChunk`s so the same playback path serves cloud and system voices.
 public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Sendable {
@@ -12,7 +12,7 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
     public let displayName: String = "System Voice (offline)"
 
     #if canImport(AVFoundation)
-    // Must be strongly retained while writing/speaking (§8.1).
+    // Must be strongly retained while writing/speaking.
     private let synthesizer = AVSpeechSynthesizer()
     #endif
 

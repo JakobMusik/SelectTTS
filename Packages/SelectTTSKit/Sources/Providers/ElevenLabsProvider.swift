@@ -76,7 +76,7 @@ public struct ElevenLabsProvider: SpeechProvider {
                 do {
                     // Request headerless PCM so the player can consume the bytes directly. Compressed
                     // tokens can't be fed to the streaming player (it would play MP3/Opus bytes as raw
-                    // PCM — noise), so refuse them up front instead of spending credits (D5).
+                    // PCM — noise), so refuse them up front instead of spending credits.
                     let (token, pcm) = ElevenLabsOutputFormat.resolve(request.format)
                     guard let pcm else {
                         throw SpeechProviderError.unsupported(

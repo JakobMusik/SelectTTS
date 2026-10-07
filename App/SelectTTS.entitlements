@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<!--
-	  No App Sandbox (decision D1): selection capture needs to read other apps'
+	  No App Sandbox: selection capture needs to read other apps'
 	  Accessibility trees and send Apple Events, which the sandbox forbids.
 
 	  Accessibility-API *client* use needs NO entitlement (TCC-gated at runtime).

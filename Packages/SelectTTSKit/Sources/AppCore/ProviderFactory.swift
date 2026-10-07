@@ -8,7 +8,7 @@ public enum ProviderFactoryError: Error, Equatable, Sendable {
 }
 
 /// Builds a concrete `SpeechProvider` from a stored `ProviderConfig`, resolving the API key from the
-/// `SecretStore` at call time. This is the one place that maps `ProviderKind` → adapter (D3); adding
+/// `SecretStore` at call time. This is the one place that maps `ProviderKind` → adapter; adding
 /// a provider family is a new `case` here plus the adapter.
 public enum ProviderFactory {
 

@@ -4,7 +4,7 @@ import SpeechCore
 import AVFoundation
 #endif
 
-/// Progressive PCM player built on `AVAudioEngine` + `AVAudioPlayerNode` (decision D5 / §7.2):
+/// Progressive PCM player built on `AVAudioEngine` + `AVAudioPlayerNode`:
 /// converts incoming 16-bit LE PCM to `Float32` `AVAudioPCMBuffer`s and `scheduleBuffer`s them as
 /// bytes arrive, for low time-to-first-audio. WAV chunks are de-headered before conversion. This
 /// type is exercised live in the app; the conversion math it relies on is unit-tested

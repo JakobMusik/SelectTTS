@@ -3,12 +3,12 @@ import PackageDescription
 
 // SelectTTSKit — the pure, UI-free, headless-testable cores of SelectTTS.
 //
-// Per decision D10 (refining D6) these live as ONE local SPM package with one
-// target per core; module boundaries are enforced by per-target dependencies.
-// Per D11 the package depends ONLY on the Apple SDK (no remote SPM deps) so
-// `swift test` is hermetic and network-free. The .xcodeproj app target injects
-// the remote-backed implementations (SelectedTextKit, Defaults, …) through the
-// protocols defined here (SelectionCapturing, SecretStore, SettingsStore, …).
+// ONE local SPM package with one target per core, rather than a package per
+// core: module boundaries are still enforced by per-target dependencies. The
+// package depends ONLY on the Apple SDK (no remote SPM deps) so `swift test` is
+// hermetic and network-free. Anything backed by a remote package lives in the
+// .xcodeproj app target and is injected through a protocol defined here (e.g.
+// the SelectedTextKit-backed `SelectionCapturing`).
 
 let package = Package(
     name: "SelectTTSKit",

@@ -2,10 +2,10 @@ import Foundation
 import SpeechCore
 
 /// One adapter for OpenAI cloud + Groq + every verified local OpenAI-compatible TTS server
-/// (Kokoro-FastAPI, AllTalk, Speaches, LocalAI). Configured per profile with `baseURL` + key +
-/// capabilities (decision D3/D4). Streams the response body over chunked transfer (D5): for
-/// `response_format: pcm` chunks carry `PCMStreamFormat.openAIpcm`; for `wav` the header is parsed
-/// downstream by the player.
+/// (Kokoro-FastAPI, AllTalk, Speaches, LocalAI), since they all accept OpenAI's request body.
+/// Configured per profile with `baseURL` + key + capabilities. Streams the response body over
+/// chunked transfer: for `response_format: pcm` chunks carry `PCMStreamFormat.openAIpcm`; for `wav`
+/// the header is parsed downstream by the player.
 public struct OpenAICompatibleProvider: SpeechProvider {
     public let id: ProviderID
     public let displayName: String
@@ -37,7 +37,7 @@ public struct OpenAICompatibleProvider: SpeechProvider {
 
     public func availableVoices() async throws -> [Voice] {
         // OpenAI-compatible TTS has no universal voice-list endpoint; the profile supplies the
-        // catalog (D4). Backends with a known list endpoint can override via a richer adapter later.
+        // catalog. Backends with a known list endpoint can override via a richer adapter later.
         staticVoices
     }
 

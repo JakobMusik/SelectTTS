@@ -5,7 +5,7 @@ import SelectionCapture
 import SpeechCore
 
 /// Create/edit/delete provider profiles, store API keys in the Keychain, pick the active profile,
-/// and test a profile before switching to it (§8/§9).
+/// and test a profile before switching to it.
 ///
 /// Placeholder and footnote strings that contain URLs use verbatim `Text`: a `LocalizedStringKey`
 /// is parsed as Markdown, which turns bare URLs into blue links and styles a placeholder like typed

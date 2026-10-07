@@ -1,7 +1,7 @@
 import Foundation
 
 /// A voice offered by a provider. Catalogs vary per backend and churn over time, so a voice is
-/// just data (decision D4) — never a hard-coded enum.
+/// just data — never a hard-coded enum.
 public struct Voice: Identifiable, Hashable, Codable, Sendable {
     /// The string passed back to the provider in a `SpeechRequest` (OpenAI name, Kokoro `af_*`,
     /// an `AVSpeechSynthesisVoice.identifier`, an ElevenLabs voice id, …).

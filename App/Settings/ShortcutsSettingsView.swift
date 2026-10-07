@@ -1,7 +1,7 @@
 import SwiftUI
 import KeyboardShortcuts
 
-/// Global hotkey recorder + Accessibility permission status (§10).
+/// Global hotkey recorder + Accessibility permission status.
 ///
 /// Deliberately NOT a `Form`: `KeyboardShortcuts.Recorder` is an NSSearchField-backed control, and
 /// inside a grouped Form its field overlaps the label column. A plain VStack with an explicit label

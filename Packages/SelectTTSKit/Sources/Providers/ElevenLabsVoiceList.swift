@@ -5,7 +5,7 @@ import SpeechCore
 ///
 /// The endpoint returns `{ "voices": [ { "voice_id", "name", "labels": { "gender", "language", … },
 /// "verified_languages": [ { "language", "locale", … } ] } ], "has_more", "next_page_token" }`.
-/// Voice ids (not names) are what `SpeechRequest.voice` carries (decision D4), so `Voice.id` = the
+/// Voice ids (not names) are what `SpeechRequest.voice` carries, so `Voice.id` = the
 /// `voice_id`. Unknown/missing fields degrade gracefully rather than failing the whole decode. The
 /// legacy `/v1/voices` shape (no pagination fields) decodes too.
 public enum ElevenLabsVoiceList {

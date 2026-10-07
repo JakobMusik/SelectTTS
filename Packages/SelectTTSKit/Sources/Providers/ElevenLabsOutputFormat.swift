@@ -7,7 +7,7 @@ import SpeechCore
 /// ElevenLabs has no WAV output, so both *streamable* SelectTTS formats (`.wav`/`.pcm`) request
 /// headerless `pcm_24000` — signed 16-bit LE, 24 kHz, mono, exactly `PCMStreamFormat.openAIpcm`.
 /// Tagging chunks with that layout makes `StreamingAudioPlayer` play them progressively instead of
-/// trying (and failing) to decode an MP3 byte stream (decision D5; the Inc 4 bug fix). Compressed
+/// trying (and failing) to decode an MP3 byte stream. Compressed
 /// tokens are still valid ElevenLabs requests but can't feed the streaming player (pcm == nil), so
 /// `ElevenLabsProvider.synthesize` refuses them rather than play the bytes as noise.
 public enum ElevenLabsOutputFormat {

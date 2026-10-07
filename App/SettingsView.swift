@@ -2,8 +2,7 @@ import SwiftUI
 import AppSettings
 import SelectionCapture
 
-/// Settings window scaffold. Panes fill in over the increments: General · Modules · Providers ·
-/// Shortcuts · Permissions/About (§9).
+/// Settings window: General · Providers · Shortcuts · About.
 struct SettingsView: View {
     @EnvironmentObject private var environment: AppEnvironment
 

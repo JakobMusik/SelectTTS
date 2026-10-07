@@ -1,7 +1,7 @@
 import Foundation
 
-/// Persists provider profiles + the active selection. The app injects a `Defaults`-backed
-/// implementation; tests use the in-memory one. (Non-secret prefs only — secrets go to `SecretStore`.)
+/// Persists provider profiles + the active selection. The app uses `UserDefaultsSettingsStore`;
+/// tests use the in-memory one. (Non-secret prefs only — secrets go to `SecretStore`.)
 public protocol SettingsStore: AnyObject, Sendable {
     func loadProviderConfigs() -> [ProviderConfig]
     func saveProviderConfigs(_ configs: [ProviderConfig])
@@ -52,8 +52,8 @@ public final class InMemorySettingsStore: SettingsStore, @unchecked Sendable {
     }
 }
 
-/// `UserDefaults`-backed store (JSON-encoded). The app may swap in sindresorhus `Defaults`; this
-/// keeps the core hermetic and dependency-free (D11).
+/// `UserDefaults`-backed store (JSON-encoded), the one the app uses. Plain `UserDefaults` rather than
+/// a typed-defaults library keeps the core free of remote dependencies.
 public final class UserDefaultsSettingsStore: SettingsStore, @unchecked Sendable {
     private let defaults: UserDefaults
     private let configsKey = "selecttts.providerConfigs"

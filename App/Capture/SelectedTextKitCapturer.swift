@@ -3,8 +3,8 @@ import AppKit
 import SelectionCapture
 import SelectedTextKit
 
-/// Production `SelectionCapturing` backed by SelectedTextKit (§5.2). MIT-licensed, so no copyleft
-/// (D8). Behind our protocol so the cores stay decoupled.
+/// Production `SelectionCapturing` backed by SelectedTextKit (MIT-licensed, so no copyleft). Behind
+/// our protocol so the cores stay decoupled.
 ///
 /// Uses the library's per-strategy chain rather than `.auto`: `.auto` only falls back to menu Copy
 /// when the Accessibility read returns *empty* text, but rethrows when it *fails* — and Electron

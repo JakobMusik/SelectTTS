@@ -2,8 +2,7 @@ import Foundation
 import SpeechCore
 
 /// Pure builder for the ElevenLabs HTTP requests — note the voice id is in the **path** and auth is
-/// the `xi-api-key` header (not Bearer), so it needs its own adapter, not the OpenAI-compatible one
-/// (decision D3).
+/// the `xi-api-key` header (not Bearer), so it needs its own adapter, not the OpenAI-compatible one.
 ///
 /// `baseURL` is the API **root** (no version segment): speech lives under `/v1`, the voice catalog
 /// under `/v2`. The data-residency hosts (`https://api.us.elevenlabs.io`,

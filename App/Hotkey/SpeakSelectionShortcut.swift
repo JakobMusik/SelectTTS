@@ -2,7 +2,7 @@ import Foundation
 import KeyboardShortcuts
 
 /// The global hotkey for "speak the current selection." KeyboardShortcuts is NSEvent-based, so it
-/// needs Accessibility (not Input Monitoring) — the same grant capture already requires (§10).
+/// needs Accessibility (not Input Monitoring) — the same grant capture already requires.
 extension KeyboardShortcuts.Name {
     static let speakSelection = Self("speakSelection")
     /// Optional dedicated stop key; unset by default (pressing the speak shortcut again also stops).

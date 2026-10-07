@@ -39,7 +39,7 @@ public struct RouteOutcome: Sendable, Equatable {
 /// Routes a `TextInput` to every enabled module that can handle it.
 ///
 /// v1 default has a single enabled module (TTS), so routing is effectively "speak it" — but the
-/// indirection is what lets new modules be added without touching the capture layer (§6).
+/// indirection is what lets new modules be added without touching the capture layer.
 public final class TextRouter: Sendable {
     private let registry: ModuleRegistry
     private let policy: RoutingPolicy

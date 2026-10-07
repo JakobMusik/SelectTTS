@@ -6,7 +6,7 @@ import SpeechCore
 ///
 /// One body shape serves OpenAI cloud, Groq (`https://api.groq.com/openai/v1`), and every verified
 /// local TTS server (Kokoro-FastAPI, AllTalk, Speaches, LocalAI) — only `baseURL` + capabilities
-/// differ (decision D3).
+/// differ.
 public struct OpenAISpeechRequestBuilder: Sendable {
 
     public init() {}

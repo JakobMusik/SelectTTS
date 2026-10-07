@@ -3,7 +3,7 @@ import Foundation
 public typealias ProviderID = String
 
 /// The TTS provider contract. One protocol; the OpenAI-compatible adapter, ElevenLabs, and the
-/// offline system voice all conform (decision D3). The signature is streaming-first: a buffered
+/// offline system voice all conform. The signature is streaming-first: a buffered
 /// provider simply yields one terminal chunk.
 public protocol SpeechProvider: Sendable {
     var id: ProviderID { get }

@@ -1,7 +1,7 @@
 import Foundation
 
-/// The handful of things that genuinely vary across OpenAI-compatible backends (§8.2). Lives in
-/// config (data, not code — D4) so new/updated backends need no code change.
+/// The handful of things that genuinely vary across OpenAI-compatible backends. Lives in config
+/// (data, not code) so new/updated backends need no code change.
 public struct ProviderCapabilities: Sendable, Equatable, Codable {
     /// `instructions` field accepted (OpenAI gpt-4o-mini-tts only).
     public var supportsInstructions: Bool

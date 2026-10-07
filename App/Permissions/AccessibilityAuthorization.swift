@@ -2,7 +2,7 @@ import Foundation
 import ApplicationServices
 import AppKit
 
-/// Thin wrapper over the Accessibility (kTCCServiceAccessibility) TCC checks (§5.3). Accessibility
+/// Thin wrapper over the Accessibility (kTCCServiceAccessibility) TCC checks. Accessibility
 /// is required for the AX read + menu-AXPress + simulated-⌘C capture strategies; the browser
 /// AppleScript path uses Automation instead (prompted per-app on first use).
 enum AccessibilityAuthorization {

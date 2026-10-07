@@ -40,7 +40,7 @@ jobs:
   lint:
     name: Lint (informational)
     runs-on: macos-14
-    # Non-gating until M5 hardens the style config.
+    # Non-gating until the style config is hardened.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
