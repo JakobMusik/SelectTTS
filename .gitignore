@@ -25,3 +25,6 @@ build/
 
 
 .env
+
+# Release artifacts (scripts/release/build-release.sh)
+dist/

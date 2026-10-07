@@ -4,7 +4,7 @@ excluded:
   - Packages/SelectTTSKit/.build
 
 disabled_rules:
-  - todo            # tracked in .planning instead
+  - todo
   - trailing_comma  # SwiftFormat manages commas
 
 line_length:

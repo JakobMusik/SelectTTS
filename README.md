@@ -8,16 +8,29 @@ AllTalk, Speaches, LocalAI), or the built-in **offline system voice** (zero conf
 Text-to-speech is the flagship module; the router is module-agnostic, so future modules
 (translate, summarize, "send to an LLM with prompt X") plug in by implementing one protocol.
 
-> **Status:** Research + planning complete (see [`docs/implementation-plan.md`](docs/implementation-plan.md)
-> and [`ref/`](ref/)). Implementation in progress — the pure cores in
-> [`Packages/SelectTTSKit`](Packages/SelectTTSKit) build and unit-test headlessly; the SwiftUI
-> menu-bar app shell (`.xcodeproj`) is built in Xcode.
+> **Status:** in development. The pure cores in [`Packages/SelectTTSKit`](Packages/SelectTTSKit)
+> build and unit-test headlessly; the SwiftUI menu-bar app (`.xcodeproj`) is built in Xcode.
+> Contributors and coding agents: start with [`AGENTS.md`](AGENTS.md).
+
+## Install
+
+```sh
+brew install --cask jakobmusik/tap/selecttts
+```
+
+Or download the DMG from [Releases](https://github.com/jakobmusik/SelectTTS/releases) and drag
+SelectTTS to Applications. Requires macOS 14 or later.
+
+SelectTTS isn't notarized by Apple (it's signed with the project's own certificate), so the DMG
+needs a one-time **Open Anyway** in System Settings ▸ Privacy & Security; the Homebrew cask handles
+that for you. Then allow SelectTTS under System Settings ▸ Privacy & Security ▸ **Accessibility** so
+it can read your selection (that permission survives updates), and record a hotkey in SelectTTS
+Settings ▸ Shortcuts. Maintainers: see [`scripts/release/README.md`](scripts/release/README.md).
 
 ## Repository layout
 
 ```
-docs/implementation-plan.md     # the load-bearing plan (architecture, decisions D1–D11, milestones)
-ref/                            # adversarially-verified research backing every decision
+ref/                            # research notes behind the design (capture, TTS APIs, macOS practices)
 Packages/SelectTTSKit/          # pure, UI-free, headless-testable cores (one target per module)
   Sources/
     SpeechCore/                 # SpeechProvider protocol, SpeechRequest, AudioChunk, SentenceChunker
@@ -55,11 +68,8 @@ open SelectTTS.xcodeproj
 
 The project pins `DEVELOPMENT_TEAM` to a Personal Team so builds are signed with a stable
 Apple Development identity (an ad-hoc signature would lose the Accessibility grant on every
-rebuild); change it to your own Team ID if you clone this. Then build & run the `SelectTTS` scheme. The app launches as a menu-bar item (no Dock icon). The current build is
-increment 1: a menu-bar shell with a **Speak Sample** action that runs text through the offline
-system voice. Selection capture (global hotkey), provider profiles, and auto-update land in
-subsequent increments — see [`docs/implementation-plan.md`](docs/implementation-plan.md) §13 and
-`.planning/task_plan.md`.
+rebuild); change it to your own Team ID if you clone this. Then build & run the `SelectTTS` scheme.
+The app launches as a menu-bar item (no Dock icon).
 
 ## License
 
