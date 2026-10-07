@@ -8,7 +8,7 @@ struct SelectTTSApp: App {
     @StateObject private var environment = AppEnvironment(capturer: SelectedTextKitCapturer())
 
     var body: some Scene {
-        MenuBarExtra("SelectTTS", systemImage: "speaker.wave.2.fill") {
+        MenuBarExtra("SelectTTS", image: "MenuBarIcon") { // template image: macOS tints it for the menu bar
             MenuContent()
                 .environmentObject(environment)
         }

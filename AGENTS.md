@@ -181,6 +181,9 @@ across the lock (Swift 6 data-race safety).
   a `ProviderFactory` branch (a new OpenAI-compatible *backend* needs none of that — just a profile).
 - TODOs and task state live in `.planning/`, decisions in `docs/implementation-plan.md` — keep them
   in sync when you change behavior.
+- **Icons:** the app icon is `App/AppIcon.icon`, an Icon Composer document (Liquid Glass; open it
+  in Icon Composer to edit, or render it with `ictool`); the menu-bar icon is the template image
+  `MenuBarIcon` in `App/Assets.xcassets`. Editable source SVGs live in `design/icon/`.
 - The `Defaults` library is named in comments/plan but **not actually used** — settings use plain
   `UserDefaults` + JSON.
 
