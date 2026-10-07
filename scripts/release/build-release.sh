@@ -42,6 +42,9 @@ EXPECTED="$(expected_sha1)"
 # 2. Build unsigned (signing happens below, with our identity, not the Xcode team's).
 BUILD_LOG="$DERIVED/xcodebuild.log"
 echo "==> Building $APP_NAME $VERSION ($BUILD_NUMBER), log: ${BUILD_LOG#"$REPO_ROOT/"}"
+# Start from nothing: `clean` keeps the module cache, which pins absolute paths and breaks the
+# build once the repository has moved.
+rm -rf "$DERIVED"
 mkdir -p "$DERIVED"
 if ! xcodebuild \
     -project "$REPO_ROOT/SelectTTS.xcodeproj" -scheme SelectTTS -configuration Release \
@@ -49,7 +52,7 @@ if ! xcodebuild \
     -disableAutomaticPackageResolution \
     MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
     CODE_SIGNING_ALLOWED=NO \
-    clean build >"$BUILD_LOG" 2>&1; then
+    build >"$BUILD_LOG" 2>&1; then
     tail -40 "$BUILD_LOG" >&2
     die "xcodebuild failed (full log: $BUILD_LOG)"
 fi
