@@ -2,10 +2,10 @@ cask "selecttts" do
   version "0.1.0"
   sha256 "92d97716652835a578a8219621b0e82884dfaaecf96ff50e4fa9d971c66eda8c"
 
-  url "https://github.com/jakobmusik/SelectTTS/releases/download/v#{version}/SelectTTS-#{version}.dmg"
+  url "https://github.com/JakobMusik/SelectTTS/releases/download/v#{version}/SelectTTS-#{version}.dmg"
   name "SelectTTS"
   desc "Reads selected text aloud with system or bring-your-own-key voices"
-  homepage "https://github.com/jakobmusik/SelectTTS"
+  homepage "https://github.com/JakobMusik/SelectTTS"
 
   livecheck do
     url :url

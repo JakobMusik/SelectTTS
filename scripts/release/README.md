@@ -20,7 +20,7 @@ project's own Homebrew tap. Moving to a Developer ID later is described at the e
   people who download the DMG click **Open Anyway** once. macOS still verifies the signature itself.
 - **Why our own tap.** The official `homebrew/cask` tap has disabled casks that fail Gatekeeper
   since September 2026, and it only accepts notable projects (225 stars, or 90 forks/watchers, for a
-  self-submission). A tap (`jakobmusik/homebrew-tap`) has neither requirement.
+  self-submission). A tap (`JakobMusik/homebrew-tap`) has neither requirement.
 
 ## Where the signing identity lives
 
@@ -48,14 +48,14 @@ that everyone must re-grant Accessibility once (remove and re-add SelectTTS in t
 
 ## One-time: the GitHub repositories
 
-The cask assumes `github.com/jakobmusik/SelectTTS` and `github.com/jakobmusik/homebrew-tap`. If you
+The cask assumes `github.com/JakobMusik/SelectTTS` and `github.com/JakobMusik/homebrew-tap`. If you
 use other names, change `url` and `homepage` in
 [`packaging/homebrew/selecttts.rb`](../../packaging/homebrew/selecttts.rb).
 
 ```sh
-gh repo create jakobmusik/SelectTTS --public --source . --push
-gh repo create jakobmusik/homebrew-tap --public --description "Homebrew tap for SelectTTS"
-git clone https://github.com/jakobmusik/homebrew-tap ../homebrew-tap
+gh repo create JakobMusik/SelectTTS --public --source . --push
+gh repo create JakobMusik/homebrew-tap --public --description "Homebrew tap for SelectTTS"
+git clone https://github.com/JakobMusik/homebrew-tap ../homebrew-tap
 ```
 
 A tap is a plain repository with the cask at `Casks/selecttts.rb`. With the checkout at

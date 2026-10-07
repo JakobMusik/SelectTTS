@@ -18,7 +18,7 @@ Text-to-speech is the flagship module; the router is module-agnostic, so future 
 brew install --cask jakobmusik/tap/selecttts
 ```
 
-Or download the DMG from [Releases](https://github.com/jakobmusik/SelectTTS/releases) and drag
+Or download the DMG from [Releases](https://github.com/JakobMusik/SelectTTS/releases) and drag
 SelectTTS to Applications. Requires macOS 14 or later.
 
 SelectTTS isn't notarized by Apple (it's signed with the project's own certificate), so the DMG
