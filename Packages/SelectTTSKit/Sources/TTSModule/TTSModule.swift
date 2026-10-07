@@ -28,7 +28,7 @@ public final class TTSModule: TextModule, @unchecked Sendable {
         self.isEnabled = isEnabled
         self.maxCharacters = maxCharacters
         self.sink = sink
-        self.providerProvider = provider
+        providerProvider = provider
         self.makeRequest = makeRequest
     }
 

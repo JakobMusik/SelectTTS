@@ -21,7 +21,7 @@ public final class ModuleRegistry: @unchecked Sendable {
     }
 
     public var enabledModules: [TextModule] {
-        all.filter { $0.isEnabled }
+        all.filter(\.isEnabled)
     }
 
     public func module(withID id: ModuleID) -> TextModule? {

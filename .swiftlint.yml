@@ -2,6 +2,8 @@
 excluded:
   - .build
   - Packages/SelectTTSKit/.build
+  - build
+  - dist
 
 disabled_rules:
   - todo

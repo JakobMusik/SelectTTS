@@ -1,9 +1,9 @@
-import XCTest
 @testable import AppCore
+import AppSettings
+import SelectionCapture
 import SpeechCore
 import TextRouting
-import SelectionCapture
-import AppSettings
+import XCTest
 
 final class ProviderFactoryTests: XCTestCase {
 
@@ -57,7 +57,7 @@ private final class CountingModule: TextModule, @unchecked Sendable {
     var isEnabled = true
     private let lock = NSLock()
     private(set) var lastText: String?
-    func canHandle(_ input: TextInput) -> Bool { true }
+    func canHandle(_: TextInput) -> Bool { true }
     func perform(_ input: TextInput) async throws { lock.lock(); lastText = input.text; lock.unlock() }
     var captured: String? { lock.lock(); defer { lock.unlock() }; return lastText }
 }

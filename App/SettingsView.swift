@@ -1,6 +1,6 @@
-import SwiftUI
 import AppSettings
 import SelectionCapture
+import SwiftUI
 
 /// Settings window: General · Providers · Shortcuts · About.
 struct SettingsView: View {

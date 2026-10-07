@@ -9,7 +9,7 @@ public struct StubSelectionCapturer: SelectionCapturing {
     }
 
     public init(text: String, strategy: CaptureStrategy = .accessibility, app: CapturedApp? = nil) {
-        self.result = .success(CaptureResult(text: text, strategy: strategy, app: app))
+        result = .success(CaptureResult(text: text, strategy: strategy, app: app))
     }
 
     public func captureSelection() async throws -> CaptureResult {

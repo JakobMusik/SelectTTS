@@ -13,7 +13,7 @@ import PackageDescription
 let package = Package(
     name: "SelectTTSKit",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v13),
     ],
     products: [
         .library(
@@ -28,7 +28,7 @@ let package = Package(
                 "TTSModule",
                 "AppCore",
             ]
-        )
+        ),
     ],
     targets: [
         // Pure domain cores (no inter-target deps)

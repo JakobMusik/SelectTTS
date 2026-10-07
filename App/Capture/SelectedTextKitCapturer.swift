@@ -1,7 +1,7 @@
-import Foundation
 import AppKit
-import SelectionCapture
+import Foundation
 import SelectedTextKit
+import SelectionCapture
 
 /// Production `SelectionCapturing` backed by SelectedTextKit (MIT-licensed, so no copyleft). Behind
 /// our protocol so the cores stay decoupled.

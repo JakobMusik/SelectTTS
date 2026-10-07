@@ -1,12 +1,12 @@
-import XCTest
 @testable import Providers
 import SpeechCore
+import XCTest
 
 final class ElevenLabsRequestBuilderTests: XCTestCase {
     private let builder = ElevenLabsRequestBuilder()
 
     private func body(_ request: URLRequest) throws -> [String: Any] {
-        try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as! [String: Any]
+        try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
     }
 
     func testStreamEndpointVoiceInPathAndKeyHeader() throws {
@@ -27,12 +27,14 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
             ("https://api.elevenlabs.io/v1", "https://api.elevenlabs.io/v1/text-to-speech/v/stream"),
             ("https://api.elevenlabs.io/v1/", "https://api.elevenlabs.io/v1/text-to-speech/v/stream"),
             ("https://api.us.elevenlabs.io", "https://api.us.elevenlabs.io/v1/text-to-speech/v/stream"),
-            ("https://api.eu.residency.elevenlabs.io/",
-             "https://api.eu.residency.elevenlabs.io/v1/text-to-speech/v/stream"),
+            (
+                "https://api.eu.residency.elevenlabs.io/",
+                "https://api.eu.residency.elevenlabs.io/v1/text-to-speech/v/stream"
+            ),
         ]
         for (base, expected) in cases {
             let req = try builder.makeRequest(
-                baseURL: URL(string: base)!, apiKey: "k", voiceID: "v", text: "hi"
+                baseURL: XCTUnwrap(URL(string: base)), apiKey: "k", voiceID: "v", text: "hi"
             )
             XCTAssertEqual(req.url?.absoluteString, expected, "base \(base)")
         }
@@ -41,10 +43,10 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
     func testSpeedIsSentAsVoiceSettingsAndClampedToAPIRange() throws {
         func speed(_ value: Double) throws -> Double? {
             let req = try builder.makeRequest(apiKey: "k", voiceID: "v", text: "hi", speed: value)
-            return (try body(req)["voice_settings"] as? [String: Any])?["speed"] as? Double
+            return try (body(req)["voice_settings"] as? [String: Any])?["speed"] as? Double
         }
         XCTAssertEqual(try XCTUnwrap(speed(1.1)), 1.1, accuracy: 1e-9)
-        XCTAssertEqual(try XCTUnwrap(speed(2.0)), 1.2, accuracy: 1e-9)  // API rejects > 1.2
+        XCTAssertEqual(try XCTUnwrap(speed(2.0)), 1.2, accuracy: 1e-9) // API rejects > 1.2
         XCTAssertEqual(try XCTUnwrap(speed(0.25)), 0.7, accuracy: 1e-9) // API rejects < 0.7
         XCTAssertNil(try speed(1.0))
     }
@@ -72,7 +74,7 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
 
     func testVoiceSettingsRequestShape() throws {
         let req = try builder.makeVoiceSettingsRequest(
-            baseURL: URL(string: "https://api.elevenlabs.io/v1")!, apiKey: "k", voiceID: " v1d "
+            baseURL: XCTUnwrap(URL(string: "https://api.elevenlabs.io/v1")), apiKey: "k", voiceID: " v1d "
         )
         XCTAssertEqual(req.url?.absoluteString, "https://api.elevenlabs.io/v1/voices/v1d/settings")
         XCTAssertEqual(req.httpMethod, "GET")
@@ -104,7 +106,7 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
         let req = try builder.makeRequest(
             apiKey: "xi-key", voiceID: "voice123", text: "hi", outputFormat: "pcm_24000"
         )
-        let components = URLComponents(url: try XCTUnwrap(req.url), resolvingAgainstBaseURL: false)
+        let components = try URLComponents(url: XCTUnwrap(req.url), resolvingAgainstBaseURL: false)
         XCTAssertEqual(components?.path, "/v1/text-to-speech/voice123/stream")
         XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "output_format" })?.value, "pcm_24000")
     }
@@ -118,7 +120,7 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
 
     func testVoiceListRequestCarriesPageTokenAndNormalizesLegacyBase() throws {
         let req = try builder.makeVoiceListRequest(
-            baseURL: URL(string: "https://api.elevenlabs.io/v1")!, apiKey: "k", pageToken: "abc"
+            baseURL: XCTUnwrap(URL(string: "https://api.elevenlabs.io/v1")), apiKey: "k", pageToken: "abc"
         )
         XCTAssertEqual(
             req.url?.absoluteString,
@@ -127,7 +129,10 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
     }
 
     func testModelListRequestShape() throws {
-        let req = try builder.makeModelListRequest(baseURL: URL(string: "https://api.elevenlabs.io/v1")!, apiKey: "k")
+        let req = try builder.makeModelListRequest(
+            baseURL: XCTUnwrap(URL(string: "https://api.elevenlabs.io/v1")),
+            apiKey: "k"
+        )
         XCTAssertEqual(req.url?.absoluteString, "https://api.elevenlabs.io/v1/models")
         XCTAssertEqual(req.httpMethod, "GET")
         XCTAssertEqual(req.value(forHTTPHeaderField: "xi-api-key"), "k")
@@ -359,7 +364,7 @@ final class ElevenLabsProviderTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.requests.first?.url?.path, "/v1/voices/voiceA/settings")
         let sent = try XCTUnwrap(StubURLProtocol.bodies.last)
         let settings = try XCTUnwrap(
-            (try JSONSerialization.jsonObject(with: sent) as? [String: Any])?["voice_settings"] as? [String: Any]
+            try (JSONSerialization.jsonObject(with: sent) as? [String: Any])?["voice_settings"] as? [String: Any]
         )
         XCTAssertEqual(settings["stability"] as? Double, 0.2)
         XCTAssertEqual(settings["style"] as? Double, 0.6)
@@ -379,7 +384,7 @@ final class ElevenLabsProviderTests: XCTestCase {
 
         let sent = try XCTUnwrap(StubURLProtocol.bodies.last)
         let settings = try XCTUnwrap(
-            (try JSONSerialization.jsonObject(with: sent) as? [String: Any])?["voice_settings"] as? [String: Any]
+            try (JSONSerialization.jsonObject(with: sent) as? [String: Any])?["voice_settings"] as? [String: Any]
         )
         XCTAssertEqual(Set(settings.keys), ["speed"])
         XCTAssertEqual(try XCTUnwrap(settings["speed"] as? Double), 0.8, accuracy: 1e-9)
@@ -462,9 +467,9 @@ final class ElevenLabsProviderTests: XCTestCase {
 /// Serves canned responses to a `URLSession` configured with it, recording each request.
 private final class StubURLProtocol: URLProtocol {
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var handler: ((URLRequest) -> (Int, Data))?
-    nonisolated(unsafe) private static var recorded: [URLRequest] = []
-    nonisolated(unsafe) private static var recordedBodies: [Data] = []
+    private nonisolated(unsafe) static var handler: ((URLRequest) -> (Int, Data))?
+    private nonisolated(unsafe) static var recorded: [URLRequest] = []
+    private nonisolated(unsafe) static var recordedBodies: [Data] = []
 
     static var requests: [URLRequest] {
         lock.lock(); defer { lock.unlock() }
@@ -489,7 +494,7 @@ private final class StubURLProtocol: URLProtocol {
         recordedBodies = []
     }
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canInit(with _: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {

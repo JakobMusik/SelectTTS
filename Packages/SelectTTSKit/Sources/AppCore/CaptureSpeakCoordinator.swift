@@ -1,7 +1,7 @@
 import Foundation
+import SelectionCapture
 import SpeechCore
 import TextRouting
-import SelectionCapture
 
 /// The top-level action a trigger invokes: capture the current selection, wrap it as `TextInput`,
 /// and route it to the enabled modules (TTS in v1). Pure orchestration over the core protocols, so

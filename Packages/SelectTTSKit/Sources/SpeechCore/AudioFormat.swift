@@ -19,8 +19,8 @@ public enum AudioFormat: String, Codable, Sendable, CaseIterable {
     /// (a decoder must align to whole frames — see `ref/tts-api-structures/04-…`).
     public var isStreamable: Bool {
         switch self {
-        case .wav, .pcm: return true
-        case .mp3, .opus, .aac, .flac, .m4a: return false
+        case .wav, .pcm: true
+        case .mp3, .opus, .aac, .flac, .m4a: false
         }
     }
 
@@ -31,13 +31,13 @@ public enum AudioFormat: String, Codable, Sendable, CaseIterable {
 
     public var mimeType: String {
         switch self {
-        case .wav: return "audio/wav"
-        case .pcm: return "audio/pcm"
-        case .mp3: return "audio/mpeg"
-        case .opus: return "audio/opus"
-        case .aac: return "audio/aac"
-        case .flac: return "audio/flac"
-        case .m4a: return "audio/mp4"
+        case .wav: "audio/wav"
+        case .pcm: "audio/pcm"
+        case .mp3: "audio/mpeg"
+        case .opus: "audio/opus"
+        case .aac: "audio/aac"
+        case .flac: "audio/flac"
+        case .m4a: "audio/mp4"
         }
     }
 }

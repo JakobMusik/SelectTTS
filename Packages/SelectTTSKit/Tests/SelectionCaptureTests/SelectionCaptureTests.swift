@@ -1,10 +1,13 @@
-import XCTest
 @testable import SelectionCapture
+import XCTest
 
 final class SelectionCaptureTests: XCTestCase {
 
     func testStubReturnsConfiguredText() async throws {
-        let capturer = StubSelectionCapturer(text: "selected words", app: CapturedApp(bundleID: "com.apple.Safari", name: "Safari"))
+        let capturer = StubSelectionCapturer(
+            text: "selected words",
+            app: CapturedApp(bundleID: "com.apple.Safari", name: "Safari")
+        )
         let result = try await capturer.captureSelection()
         XCTAssertEqual(result.text, "selected words")
         XCTAssertEqual(result.strategy, .accessibility)

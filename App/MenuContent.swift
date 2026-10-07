@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// The `MenuBarExtra` dropdown (default `.menu` style). The PopClip-style chooser and richer
 /// transport controls arrive in later increments.

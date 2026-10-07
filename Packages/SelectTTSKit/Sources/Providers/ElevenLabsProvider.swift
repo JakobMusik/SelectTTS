@@ -96,8 +96,8 @@ public struct ElevenLabsProvider: SpeechProvider {
                     let (bytes, response) = try await session.bytes(for: urlRequest)
                     if let http = response as? HTTPURLResponse,
                        !(200..<300).contains(http.statusCode) {
-                        throw SpeechProviderError.httpStatus(
-                            http.statusCode, body: await Self.errorMessage(from: bytes)
+                        throw await SpeechProviderError.httpStatus(
+                            http.statusCode, body: Self.errorMessage(from: bytes)
                         )
                     }
                     var buffer = Data()

@@ -1,6 +1,6 @@
-import XCTest
 @testable import AppSettings
 import SpeechCore
+import XCTest
 
 final class ProviderConfigTests: XCTestCase {
 

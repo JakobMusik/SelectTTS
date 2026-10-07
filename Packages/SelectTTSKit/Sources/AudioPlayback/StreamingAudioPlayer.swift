@@ -171,7 +171,7 @@ public final class StreamingAudioPlayer: AudioSink, @unchecked Sendable {
     }
     #else
     public init() {}
-    public func enqueue(_ chunk: AudioChunk) async throws {}
+    public func enqueue(_: AudioChunk) async throws {}
     public func finish() async {}
     public func stop() async {}
     #endif

@@ -131,9 +131,12 @@ public struct ElevenLabsRequestBuilder: Sendable {
         if let pageToken, !pageToken.isEmpty {
             query.append(URLQueryItem(name: "next_page_token", value: pageToken))
         }
-        let url = Self.adding(query, to: Self.apiRoot(baseURL)
-            .appendingPathComponent("v2")
-            .appendingPathComponent("voices"))
+        let url = Self.adding(
+            query,
+            to: Self.apiRoot(baseURL)
+                .appendingPathComponent("v2")
+                .appendingPathComponent("voices")
+        )
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "GET"
         urlRequest.setValue(apiKey, forHTTPHeaderField: "xi-api-key")

@@ -1,7 +1,7 @@
-import XCTest
-@testable import TTSModule
 import SpeechCore
 import TextRouting
+@testable import TTSModule
+import XCTest
 
 private struct BoomError: Error {}
 
@@ -43,7 +43,7 @@ private final class RecordingSink: AudioSink, @unchecked Sendable {
     private(set) var finishCount = 0
     private(set) var stopCount = 0
 
-    func enqueue(_ chunk: AudioChunk) async throws { lock.lock(); enqueued += 1; lock.unlock() }
+    func enqueue(_: AudioChunk) async throws { lock.lock(); enqueued += 1; lock.unlock() }
     func finish() async { lock.lock(); finishCount += 1; lock.unlock() }
     func stop() async { lock.lock(); stopCount += 1; lock.unlock() }
 

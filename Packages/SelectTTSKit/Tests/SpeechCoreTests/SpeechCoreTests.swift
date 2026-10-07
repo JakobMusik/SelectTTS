@@ -1,5 +1,5 @@
-import XCTest
 @testable import SpeechCore
+import XCTest
 
 final class SentenceChunkerTests: XCTestCase {
 
@@ -57,7 +57,7 @@ final class SpeechCoreTypeTests: XCTestCase {
 
     func testCapabilityPresets() {
         XCTAssertEqual(ProviderCapabilities.openAI.maxInputCharacters, 4096)
-        XCTAssertFalse(ProviderCapabilities.openAI.speedHonored)   // gpt-4o-mini-tts ignores speed
+        XCTAssertFalse(ProviderCapabilities.openAI.speedHonored) // gpt-4o-mini-tts ignores speed
         XCTAssertTrue(ProviderCapabilities.openAITTS1.speedHonored)
         XCTAssertGreaterThan(ProviderCapabilities.kokoro.maxInputCharacters, 4096)
     }

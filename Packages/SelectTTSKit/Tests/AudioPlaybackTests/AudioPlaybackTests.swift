@@ -1,6 +1,6 @@
-import XCTest
 @testable import AudioPlayback
 import SpeechCore
+import XCTest
 
 final class PCMConverterTests: XCTestCase {
 
@@ -73,11 +73,11 @@ final class WAVHeaderParserTests: XCTestCase {
         extraChunksBeforeData: [UInt8] = []
     ) -> Data {
         var fmt: [UInt8] = []
-        fmt += le16(1)                                    // audioFormat = PCM
+        fmt += le16(1) // audioFormat = PCM
         fmt += le16(channels)
         fmt += le32(sampleRate)
         fmt += le32(sampleRate * UInt32(channels) * UInt32(bits / 8)) // byteRate
-        fmt += le16(channels * (bits / 8))                // blockAlign
+        fmt += le16(channels * (bits / 8)) // blockAlign
         fmt += le16(bits)
         let fmtChunk = chunk(id: "fmt ", payload: fmt)
         let dataChunk = chunk(id: "data", payload: [UInt8](repeating: 0, count: sampleBytes))

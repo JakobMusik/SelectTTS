@@ -1,13 +1,13 @@
-import XCTest
 @testable import Providers
 import SpeechCore
+import XCTest
 
 final class OpenAISpeechRequestBuilderTests: XCTestCase {
     private let builder = OpenAISpeechRequestBuilder()
     private let base = URL(string: "https://api.openai.com/v1")!
 
     private func body(_ request: URLRequest) throws -> [String: Any] {
-        try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as! [String: Any]
+        try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
     }
 
     func testBuildsEndpointHeadersAndBody() throws {
@@ -41,7 +41,7 @@ final class OpenAISpeechRequestBuilderTests: XCTestCase {
 
     func testEmptyKeyGetsPlaceholderForLocalServers() throws {
         let req = try builder.makeRequest(
-            baseURL: URL(string: "http://localhost:8880/v1")!, apiKey: "",
+            baseURL: XCTUnwrap(URL(string: "http://localhost:8880/v1")), apiKey: "",
             request: SpeechRequest(text: "hi", voice: "af_bella", model: "kokoro"),
             capabilities: .kokoro
         )
@@ -61,4 +61,3 @@ final class OpenAISpeechRequestBuilderTests: XCTestCase {
         }
     }
 }
-

@@ -1,12 +1,12 @@
-import Foundation
-import SwiftUI
-import AppKit
 import AppCore
+import AppKit
 import AppSettings
 import AudioPlayback
+import Foundation
 import Providers
 import SelectionCapture
 import SpeechCore
+import SwiftUI
 import TextRouting
 
 /// The app's composition root. Instantiates the cores from `SelectTTSKit` and wires them together;
@@ -28,6 +28,7 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var status: String = "Ready" {
         didSet { statusIsError = false }
     }
+
     /// Whether `status` reports a failure (set via `fail(_:)`), so views can style it.
     @Published private(set) var statusIsError = false
     @Published private(set) var accessibilityTrusted: Bool = AccessibilityAuthorization.isTrusted
@@ -66,8 +67,8 @@ final class AppEnvironment: ObservableObject {
         settings: SettingsStore = UserDefaultsSettingsStore(),
         secrets: SecretStore = KeychainSecretStore()
     ) {
-        self.settingsStore = settings
-        self.secretStore = secrets
+        settingsStore = settings
+        secretStore = secrets
 
         let player = StreamingAudioPlayer()
         self.player = player
@@ -83,15 +84,15 @@ final class AppEnvironment: ObservableObject {
         self.registry = registry
         let router = TextRouter(registry: registry)
         self.router = router
-        self.coordinator = CaptureSpeakCoordinator(capturer: capturer, router: router)
+        coordinator = CaptureSpeakCoordinator(capturer: capturer, router: router)
 
         // Load persisted profiles; guarantee the permanent offline system profile is present.
         var configs = settings.loadProviderConfigs()
         if !configs.contains(where: { $0.id == ProviderConfig.systemDefault.id }) {
             configs.insert(.systemDefault, at: 0)
         }
-        self.providerConfigs = configs
-        self.activeProviderID = settings.loadActiveProviderID() ?? configs.first?.id ?? ProviderConfig.systemDefault.id
+        providerConfigs = configs
+        activeProviderID = settings.loadActiveProviderID() ?? configs.first?.id ?? ProviderConfig.systemDefault.id
 
         registerHotkey()
     }
@@ -119,7 +120,7 @@ final class AppEnvironment: ObservableObject {
         }
         let coordinator = coordinator
         beginSpeaking { [weak self] in
-            self?.report(try await coordinator.captureAndRoute(trigger: .hotkey))
+            try await self?.report(coordinator.captureAndRoute(trigger: .hotkey))
         }
     }
 
@@ -134,7 +135,7 @@ final class AppEnvironment: ObservableObject {
         }
         let router = router
         beginSpeaking { [weak self] in
-            self?.report(try await router.route(TextInput(text: text, trigger: .menuBar)))
+            try await self?.report(router.route(TextInput(text: text, trigger: .menuBar)))
         }
     }
 
@@ -143,7 +144,7 @@ final class AppEnvironment: ObservableObject {
     func speakSample() {
         let router = router
         beginSpeaking { [weak self] in
-            self?.report(try await router.route(TextInput(
+            try await self?.report(router.route(TextInput(
                 text: "SelectTTS is ready. This sample is spoken by the active voice.",
                 trigger: .manual
             )))
@@ -181,7 +182,7 @@ final class AppEnvironment: ObservableObject {
             } catch {
                 if Task.isCancelled || error is CancellationError { return } // stopped by the user
                 Log.speak.error("utterance failed: \(String(describing: error), privacy: .public)")
-                if let self { self.fail(failure?(error) ?? self.describe(error)) }
+                if let self { fail(failure?(error) ?? describe(error)) }
             }
             guard !Task.isCancelled else { return }
             await player.stop() // release the audio device while idle
@@ -339,7 +340,7 @@ final class AppEnvironment: ObservableObject {
                 let caveats = list.filter { $0.note != nil }.count
                 status = list.isEmpty ? "No voices returned" + modelNote
                     : "Loaded \(list.count) voices" + modelNote
-                        + (caveats > 0 ? " — \(caveats) voices marked ⚠︎ may not work on your plan" : "")
+                    + (caveats > 0 ? " — \(caveats) voices marked ⚠︎ may not work on your plan" : "")
             case .failure(let error):
                 showFetchedVoices([], for: config.id)
                 fail("Couldn't fetch voices: \(error)")
@@ -347,10 +348,10 @@ final class AppEnvironment: ObservableObject {
         }
     }
 
-    nonisolated private static func fetch<T: Sendable>(
+    private nonisolated static func fetch<T: Sendable>(
         _ body: @Sendable () async throws -> T
     ) async -> Result<T, Error> {
-        do { return .success(try await body()) } catch { return .failure(error) }
+        do { return try await .success(body()) } catch { return .failure(error) }
     }
 
     /// Publishes a fetched voice catalog for one profile's editor.
@@ -432,10 +433,10 @@ final class AppEnvironment: ObservableObject {
 
     private func describe(_ error: Error) -> String {
         switch error {
-        case CaptureError.noSelection: return "No text selected"
-        case CaptureError.notTrusted: return "Grant Accessibility to read selected text"
-        case RoutingRejection.empty: return "No text selected"
-        default: return "Error: \(error)"
+        case CaptureError.noSelection: "No text selected"
+        case CaptureError.notTrusted: "Grant Accessibility to read selected text"
+        case RoutingRejection.empty: "No text selected"
+        default: "Error: \(error)"
         }
     }
 }

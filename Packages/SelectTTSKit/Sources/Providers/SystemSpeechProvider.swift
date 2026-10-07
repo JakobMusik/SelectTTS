@@ -12,11 +12,11 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
     public let displayName: String = "System Voice (offline)"
 
     #if canImport(AVFoundation)
-    // Must be strongly retained while writing/speaking.
+    /// Must be strongly retained while writing/speaking.
     private let synthesizer = AVSpeechSynthesizer()
     #endif
 
-    public override init() { super.init() }
+    override public init() { super.init() }
 
     public func availableVoices() async throws -> [Voice] {
         #if canImport(AVFoundation)
@@ -45,7 +45,7 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
 
             // Stop rendering when the consumer goes away (e.g. the user stopped playback).
             continuation.onTermination = { [self] termination in
-                if case .cancelled = termination { self.synthesizer.stopSpeaking(at: .immediate) }
+                if case .cancelled = termination { synthesizer.stopSpeaking(at: .immediate) }
             }
 
             self.synthesizer.write(utterance) { buffer in
@@ -103,17 +103,17 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
 
     static func mapQuality(_ q: AVSpeechSynthesisVoiceQuality) -> VoiceQuality {
         switch q {
-        case .enhanced: return .enhanced
-        case .premium: return .premium
-        default: return .default
+        case .enhanced: .enhanced
+        case .premium: .premium
+        default: .default
         }
     }
 
     static func mapGender(_ g: AVSpeechSynthesisVoiceGender) -> VoiceGender {
         switch g {
-        case .male: return .male
-        case .female: return .female
-        default: return .unspecified
+        case .male: .male
+        case .female: .female
+        default: .unspecified
         }
     }
     #endif

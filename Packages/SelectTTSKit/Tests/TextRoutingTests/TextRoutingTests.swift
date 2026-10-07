@@ -1,5 +1,5 @@
-import XCTest
 @testable import TextRouting
+import XCTest
 
 private final class FakeModule: TextModule, @unchecked Sendable {
     let id: ModuleID
@@ -11,12 +11,12 @@ private final class FakeModule: TextModule, @unchecked Sendable {
 
     init(id: ModuleID, isEnabled: Bool = true, handles: Bool = true) {
         self.id = id
-        self.displayName = id
+        displayName = id
         self.isEnabled = isEnabled
         self.handles = handles
     }
 
-    func canHandle(_ input: TextInput) -> Bool { handles }
+    func canHandle(_: TextInput) -> Bool { handles }
 
     func perform(_ input: TextInput) async throws {
         lock.lock(); performedInputs.append(input); lock.unlock()
@@ -30,16 +30,16 @@ private final class FailingModule: TextModule, @unchecked Sendable {
     let id: ModuleID = "boom"
     let displayName = "boom"
     var isEnabled = true
-    func canHandle(_ input: TextInput) -> Bool { true }
-    func perform(_ input: TextInput) async throws { throw BoomError() }
+    func canHandle(_: TextInput) -> Bool { true }
+    func perform(_: TextInput) async throws { throw BoomError() }
 }
 
 private final class CancelledModule: TextModule, @unchecked Sendable {
     let id: ModuleID = "cancelled"
     let displayName = "cancelled"
     var isEnabled = true
-    func canHandle(_ input: TextInput) -> Bool { true }
-    func perform(_ input: TextInput) async throws { throw CancellationError() }
+    func canHandle(_: TextInput) -> Bool { true }
+    func perform(_: TextInput) async throws { throw CancellationError() }
 }
 
 final class TextRouterTests: XCTestCase {

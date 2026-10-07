@@ -1,7 +1,7 @@
+import AppSettings
 import Foundation
 import SpeechCore
 import TextRouting
-import AppSettings
 import TTSModule
 
 /// Assembles the default TTS pipeline from app state: a `TTSModule` whose active provider is resolved
@@ -47,7 +47,7 @@ private struct SystemSpeechFallback: SpeechProvider {
     let id: ProviderID = "system.fallback"
     let displayName = "System Voice"
     func availableVoices() async throws -> [Voice] { [] }
-    func synthesize(_ request: SpeechRequest) -> AsyncThrowingStream<AudioChunk, Error> {
+    func synthesize(_: SpeechRequest) -> AsyncThrowingStream<AudioChunk, Error> {
         AsyncThrowingStream { $0.finish() }
     }
 }

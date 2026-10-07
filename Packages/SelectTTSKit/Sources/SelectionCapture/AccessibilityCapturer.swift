@@ -36,7 +36,7 @@ public struct AccessibilityCapturer: SelectionCapturing {
             throw CaptureError.noFocusedElement
         }
         // Safe: a non-nil AX attribute value of this attribute is an AXUIElement.
-        let element = focused as! AXUIElement
+        let element = focused as! AXUIElement // swiftlint:disable:this force_cast
 
         var selectedRef: CFTypeRef?
         let selErr = AXUIElementCopyAttributeValue(

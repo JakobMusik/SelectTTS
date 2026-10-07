@@ -39,7 +39,7 @@ public enum WAVHeaderParser {
         guard tag(b, 8) == "WAVE" else { throw WAVParseError.notWAVE }
 
         var offset = 12
-        var fmt: (sampleRate: Double, channels: Int, bits: Int, isFloat: Bool)?
+        var fmt: PCMStreamFormat?
         var dataChunk: (offset: Int, length: Int)?
 
         while offset + 8 <= b.count {
@@ -47,12 +47,14 @@ public enum WAVHeaderParser {
             let size = Int(readUInt32LE(b, offset + 4))
             let payload = offset + 8
 
-            if id == "fmt " && payload + 16 <= b.count {
-                let audioFormat = readUInt16LE(b, payload)          // 1 = PCM, 3 = IEEE float
+            if id == "fmt ", payload + 16 <= b.count {
+                let audioFormat = readUInt16LE(b, payload) // 1 = PCM, 3 = IEEE float
                 let channels = Int(readUInt16LE(b, payload + 2))
                 let sampleRate = Double(readUInt32LE(b, payload + 4))
                 let bits = Int(readUInt16LE(b, payload + 14))
-                fmt = (sampleRate, channels, bits, audioFormat == 3)
+                fmt = PCMStreamFormat(
+                    sampleRate: sampleRate, channels: channels, bitsPerSample: bits, isFloat: audioFormat == 3
+                )
             } else if id == "data" {
                 dataChunk = (payload, size)
                 break // samples follow; stop scanning
@@ -68,7 +70,7 @@ public enum WAVHeaderParser {
         return WAVHeader(
             sampleRate: fmt.sampleRate,
             channels: fmt.channels,
-            bitsPerSample: fmt.bits,
+            bitsPerSample: fmt.bitsPerSample,
             isFloat: fmt.isFloat,
             dataOffset: dataChunk.offset,
             dataLength: dataChunk.length

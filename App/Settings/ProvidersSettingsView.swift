@@ -1,8 +1,8 @@
-import SwiftUI
 import AppSettings
 import Providers
 import SelectionCapture
 import SpeechCore
+import SwiftUI
 
 /// Create/edit/delete provider profiles, store API keys in the Keychain, pick the active profile,
 /// and test a profile before switching to it.
@@ -78,9 +78,12 @@ struct ProvidersSettingsView: View {
 
             if draft.kind == .openAICompatible {
                 row("Base URL") {
-                    TextField("Base URL", text: bind(\.baseURLString),
-                              prompt: Text(verbatim: "https://api.openai.com/v1"))
-                        .labelsHidden()
+                    TextField(
+                        "Base URL",
+                        text: bind(\.baseURLString),
+                        prompt: Text(verbatim: "https://api.openai.com/v1")
+                    )
+                    .labelsHidden()
                     footnote("OpenAI, Groq (https://api.groq.com/openai/v1), or a local server such as "
                         + "Kokoro-FastAPI (http://localhost:8880/v1). Not LM Studio/Ollama — they have no "
                         + "TTS endpoint.")
@@ -88,9 +91,12 @@ struct ProvidersSettingsView: View {
             }
             if draft.kind == .elevenLabs {
                 row("Base URL") {
-                    TextField("Base URL", text: bind(\.baseURLString),
-                              prompt: Text(verbatim: "https://api.elevenlabs.io (default)"))
-                        .labelsHidden()
+                    TextField(
+                        "Base URL",
+                        text: bind(\.baseURLString),
+                        prompt: Text(verbatim: "https://api.elevenlabs.io (default)")
+                    )
+                    .labelsHidden()
                     footnote("Leave empty for the global API. Data-residency workspaces use their own host: "
                         + "https://api.us.elevenlabs.io · https://api.eu.residency.elevenlabs.io · "
                         + "https://api.in.residency.elevenlabs.io · https://api.sg.residency.elevenlabs.io")
@@ -121,9 +127,12 @@ struct ProvidersSettingsView: View {
 
             row("Voice") {
                 HStack {
-                    TextField("Voice", text: bind(\.voice),
-                              prompt: Text(verbatim: draft.kind == .elevenLabs ? "Voice ID" : "Voice name"))
-                        .labelsHidden()
+                    TextField(
+                        "Voice",
+                        text: bind(\.voice),
+                        prompt: Text(verbatim: draft.kind == .elevenLabs ? "Voice ID" : "Voice name")
+                    )
+                    .labelsHidden()
                     if draft.kind == .elevenLabs {
                         Button("Refresh") { save(); env.refreshCatalog(for: draft) }
                             .help("Reload voices and models from ElevenLabs")
@@ -141,11 +150,17 @@ struct ProvidersSettingsView: View {
                 .labelsHidden()
                 .fixedSize()
                 if draft.kind == .elevenLabs {
-                    footnote("ElevenLabs streams 24 kHz PCM (low latency); WAV maps to PCM. MP3/Opus/other "
-                        + "formats can't be played yet.", warning: !draft.format.isStreamable)
+                    footnote(
+                        "ElevenLabs streams 24 kHz PCM (low latency); WAV maps to PCM. MP3/Opus/other "
+                            + "formats can't be played yet.",
+                        warning: !draft.format.isStreamable
+                    )
                 } else if !draft.format.isStreamable {
-                    footnote("\(draft.format.rawValue.uppercased()) isn't streamed yet — use WAV or PCM for "
-                        + "low-latency playback.", warning: true)
+                    footnote(
+                        "\(draft.format.rawValue.uppercased()) isn't streamed yet — use WAV or PCM for "
+                            + "low-latency playback.",
+                        warning: true
+                    )
                 }
             }
 
@@ -397,8 +412,13 @@ struct ProvidersSettingsView: View {
         Voice(id: "lib1", name: "Allison - Cowgirl", note: ElevenLabsVoiceList.libraryVoiceNote),
     ], for: profile.id)
     env.showFetchedModels([
-        SpeechModel(id: "eleven_v4", name: "Eleven v4", summary: "Our fastest and most emotive model.",
-                    maxInputCharacters: 10_000, costMultiplier: 1),
+        SpeechModel(
+            id: "eleven_v4",
+            name: "Eleven v4",
+            summary: "Our fastest and most emotive model.",
+            maxInputCharacters: 10_000,
+            costMultiplier: 1
+        ),
         SpeechModel(id: "eleven_v4_turbo", name: "Eleven v4 Turbo", maxInputCharacters: 10_000, costMultiplier: 0.5),
     ], for: profile.id)
     return ProvidersSettingsView()

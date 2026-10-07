@@ -1,8 +1,18 @@
 # SwiftFormat configuration — see https://github.com/nicklockwood/SwiftFormat
---swiftversion 5.9
+--swift-version 5.9
 --indent 4
---maxwidth 110
---wraparguments before-first
---wrapparameters before-first
---commas inline
---exclude .build,Packages/*/.build
+--max-width 120
+--wrap-arguments before-first
+--wrap-parameters before-first
+--trailing-commas collections-only
+--ifdef no-indent
+--ranges no-space
+--pattern-let inline
+--extension-acl on-declarations
+--type-blank-lines preserve
+# os.Logger interpolations are escaping autoclosures, so they need an explicit `self.`.
+--self-required debug,info,notice,error,warning,fault,critical,trace,log
+# Keep the house style: one-line bodies, `{` on the condition's last line, literals as written.
+--disable wrapFunctionBodies,wrapIfStatementBodies,wrapLoopBodies,wrapPropertyBodies
+--disable wrapMultilineStatementBraces,numberFormatting
+--exclude .build,Packages/*/.build,build,dist

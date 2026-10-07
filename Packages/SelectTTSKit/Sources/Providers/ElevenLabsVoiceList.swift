@@ -55,10 +55,10 @@ public enum ElevenLabsVoiceList {
 
     private static func mapGender(_ value: String?) -> VoiceGender? {
         switch value?.lowercased() {
-        case "male": return .male
-        case "female": return .female
-        case .some: return .unspecified
-        case nil: return nil
+        case "male": .male
+        case "female": .female
+        case .some: .unspecified
+        case nil: nil
         }
     }
 

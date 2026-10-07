@@ -18,12 +18,12 @@ public enum ElevenLabsOutputFormat {
         switch format {
         case .wav, .pcm:
             // ElevenLabs emits no container; pcm_24000 == openAIpcm (24 kHz / 16-bit / signed LE / mono).
-            return ("pcm_24000", .openAIpcm)
+            ("pcm_24000", .openAIpcm)
         case .opus:
-            return ("opus_48000_128", nil)
+            ("opus_48000_128", nil)
         case .mp3, .aac, .flac, .m4a:
             // ElevenLabs offers no AAC/FLAC/M4A; fall back to its default-bitrate MP3.
-            return ("mp3_44100_128", nil)
+            ("mp3_44100_128", nil)
         }
     }
 }

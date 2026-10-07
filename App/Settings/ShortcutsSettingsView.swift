@@ -1,5 +1,5 @@
-import SwiftUI
 import KeyboardShortcuts
+import SwiftUI
 
 /// Global hotkey recorder + Accessibility permission status.
 ///
