@@ -105,11 +105,16 @@ struct ProvidersSettingsView: View {
                 }
 
                 row("Model") {
-                    TextField("Model", text: bind(\.model), prompt: Text(verbatim: modelPrompt))
-                        .labelsHidden()
-                    if draft.kind == .elevenLabs {
-                        footnote("eleven_multilingual_v2 (default) · eleven_v4 (most expressive) · "
-                            + "eleven_v4_turbo or eleven_flash_v2_5 (lowest latency)")
+                    if fetchedModels.isEmpty {
+                        TextField("Model", text: bind(\.model), prompt: Text(verbatim: modelPrompt))
+                            .labelsHidden()
+                        if draft.kind == .elevenLabs {
+                            footnote("eleven_multilingual_v2 (default) · eleven_v4 (most expressive) · "
+                                + "eleven_v4_turbo or eleven_flash_v2_5 (lowest latency). Save a key to "
+                                + "pick from your account's models.")
+                        }
+                    } else {
+                        modelPicker
                     }
                 }
             }
@@ -120,7 +125,8 @@ struct ProvidersSettingsView: View {
                               prompt: Text(verbatim: draft.kind == .elevenLabs ? "Voice ID" : "Voice name"))
                         .labelsHidden()
                     if draft.kind == .elevenLabs {
-                        Button("Fetch Voices") { save(); env.refreshVoices(for: draft) }
+                        Button("Refresh") { save(); env.refreshCatalog(for: draft) }
+                            .help("Reload voices and models from ElevenLabs")
                     }
                 }
                 if draft.kind == .elevenLabs { voicePicker }
@@ -202,6 +208,56 @@ struct ProvidersSettingsView: View {
 
     private var modelPrompt: String {
         draft.kind == .elevenLabs ? ElevenLabsRequestBuilder.defaultModelID : "e.g. gpt-4o-mini-tts or tts-1"
+    }
+
+    // MARK: - Model catalog (ElevenLabs)
+
+    private var fetchedModels: [SpeechModel] {
+        env.fetchedModelsProviderID == draft.id ? env.fetchedModels : []
+    }
+
+    /// The profile's model, or the provider default the request falls back to when none is set.
+    private var currentModelID: String {
+        draft.model ?? (draft.kind == .elevenLabs ? ElevenLabsRequestBuilder.defaultModelID : "")
+    }
+
+    /// Dropdown of the account's text-to-speech models (API order, newest first). A model id that
+    /// isn't in the list (typed earlier, or retired) stays selectable so it is never silently lost.
+    @ViewBuilder
+    private var modelPicker: some View {
+        let models = fetchedModels
+        let current = currentModelID
+        Picker("Model", selection: Binding(get: { current }, set: { draft.model = $0 })) {
+            ForEach(models) { model in
+                Text(verbatim: Self.label(for: model)).tag(model.id)
+            }
+            if !models.contains(where: { $0.id == current }) {
+                Divider()
+                Text(verbatim: "\(current) (not in your account's list)").tag(current)
+            }
+        }
+        .labelsHidden()
+        .fixedSize()
+        if let model = models.first(where: { $0.id == current }) {
+            footnote(Self.details(for: model))
+        } else {
+            footnote("This model isn't offered for your account — requests may fail.", warning: true)
+        }
+    }
+
+    private static func label(for model: SpeechModel) -> String {
+        guard let cost = model.costMultiplier, abs(cost - 1) > 0.001 else { return model.name }
+        return "\(model.name)  ·  \(cost.formatted())× credits"
+    }
+
+    private static func details(for model: SpeechModel) -> String {
+        var parts = [model.id]
+        if let max = model.maxInputCharacters { parts.append("up to \(max.formatted()) characters per request") }
+        if let cost = model.costMultiplier, abs(cost - 1) > 0.001 {
+            parts.append("\(cost.formatted())× credits per character")
+        }
+        let facts = parts.joined(separator: " · ")
+        return model.summary.map { "\($0)\n\(facts)" } ?? facts
     }
 
     // MARK: - Voice catalog (ElevenLabs)
@@ -293,10 +349,10 @@ struct ProvidersSettingsView: View {
             draft = config
             apiKey = ""
             storedKeySuffix = env.storedKeySuffix(for: config)
-            // Load the catalog once per profile so the current voice's name (and any caveat, e.g. a
-            // library voice on a free plan) shows without an extra click.
+            // Load the catalogs once per profile so the model dropdown and the current voice's name
+            // (and any caveat, e.g. a library voice on a free plan) show without an extra click.
             if config.kind == .elevenLabs, storedKeySuffix != nil, env.fetchedVoicesProviderID != config.id {
-                env.refreshVoices(for: config)
+                env.refreshCatalog(for: config)
             }
         }
     }
@@ -339,6 +395,11 @@ struct ProvidersSettingsView: View {
     env.showFetchedVoices([
         Voice(id: "george", name: "George - Warm, Captivating Storyteller"),
         Voice(id: "lib1", name: "Allison - Cowgirl", note: ElevenLabsVoiceList.libraryVoiceNote),
+    ], for: profile.id)
+    env.showFetchedModels([
+        SpeechModel(id: "eleven_v4", name: "Eleven v4", summary: "Our fastest and most emotive model.",
+                    maxInputCharacters: 10_000, costMultiplier: 1),
+        SpeechModel(id: "eleven_v4_turbo", name: "Eleven v4 Turbo", maxInputCharacters: 10_000, costMultiplier: 0.5),
     ], for: profile.id)
     return ProvidersSettingsView()
         .environmentObject(env)

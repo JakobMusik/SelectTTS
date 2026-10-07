@@ -114,6 +114,7 @@ utterance with no rebuild.
 ### Providers
 
 All providers conform to one `SpeechProvider` protocol (`id`, `displayName`, `availableVoices()`,
+`availableModels()` — defaults to `[]`, i.e. "model is free text" — and
 `synthesize() -> AsyncThrowingStream<AudioChunk>`). `ProviderFactory` maps `ProviderConfig.kind`
 (`.system` / `.openAICompatible` / `.elevenLabs`) to a concrete adapter:
 

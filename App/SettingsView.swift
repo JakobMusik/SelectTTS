@@ -1,4 +1,6 @@
 import SwiftUI
+import AppSettings
+import SelectionCapture
 
 /// Settings window scaffold. Panes fill in over the increments: General · Modules · Providers ·
 /// Shortcuts · Permissions/About (§9).
@@ -20,7 +22,10 @@ struct SettingsView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .frame(width: 520, height: 560)
-        .onAppear { environment.refreshPermissions() }
+        .onAppear {
+            environment.refreshPermissions()
+            environment.refreshLaunchAtLogin()
+        }
     }
 }
 
@@ -29,11 +34,31 @@ private struct GeneralSettingsView: View {
 
     var body: some View {
         Form {
-            LabeledContent("Active voice", value: environment.activeProviderName)
-            LabeledContent("Status", value: environment.status)
-            Button("Speak a sample") { environment.speakSample() }
+            Section {
+                Toggle("Open SelectTTS at login", isOn: Binding(
+                    get: { environment.launchAtLogin != .disabled },
+                    set: { environment.setLaunchAtLogin($0) }
+                ))
+                if environment.launchAtLogin == .requiresApproval {
+                    HStack {
+                        Text(verbatim: "Allow SelectTTS in System Settings ▸ General ▸ Login Items.")
+                            .font(.footnote).foregroundStyle(.orange)
+                        Spacer()
+                        Button("Open Login Items") { LaunchAtLogin.openLoginItemsSettings() }
+                    }
+                }
+            }
+            Section {
+                LabeledContent("Active voice", value: environment.activeProviderName)
+                LabeledContent("Status") {
+                    Text(verbatim: environment.status)
+                        .foregroundStyle(environment.statusIsError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .textSelection(.enabled)
+                }
+                Button("Speak a sample") { environment.speakSample() }
+            }
         }
-        .padding()
+        .formStyle(.grouped)
     }
 }
 
@@ -47,4 +72,14 @@ private struct AboutSettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
+}
+
+#Preview("General") {
+    GeneralSettingsView()
+        .environmentObject(AppEnvironment(
+            capturer: StubSelectionCapturer(text: "Preview"),
+            settings: InMemorySettingsStore(),
+            secrets: InMemorySecretStore()
+        ))
+        .frame(width: 520, height: 500)
 }

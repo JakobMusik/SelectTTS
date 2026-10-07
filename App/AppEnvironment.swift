@@ -51,6 +51,13 @@ final class AppEnvironment: ObservableObject {
     /// fetched for so a stale list isn't shown against a different profile.
     @Published private(set) var fetchedVoices: [Voice] = []
     @Published private(set) var fetchedVoicesProviderID: String?
+    /// The provider's model catalog (ElevenLabs `/v1/models`), loaded with the voices; empty when the
+    /// provider has none or it couldn't be fetched (the editor then falls back to a text field).
+    @Published private(set) var fetchedModels: [SpeechModel] = []
+    @Published private(set) var fetchedModelsProviderID: String?
+
+    /// Whether SelectTTS is registered to open at login (re-read, since System Settings can change it).
+    @Published private(set) var launchAtLogin: LaunchAtLogin.State = LaunchAtLogin.state
 
     /// `settings`/`secrets` default to the real stores; previews inject in-memory ones so they never
     /// touch the user's defaults or Keychain.
@@ -297,33 +304,81 @@ final class AppEnvironment: ObservableObject {
 
     // MARK: - Voice catalog
 
-    /// Fetch the provider's voice catalog (ElevenLabs `/v2/voices`) so the editor can offer a picker.
-    /// Failures (no key, bad key, missing permission) land in `status` with the server's message; the
-    /// voice field stays editable either way.
-    func refreshVoices(for config: ProviderConfig) {
-        status = "Fetching voices for \(config.name)…"
+    /// Load the provider's voice and model catalogs (ElevenLabs `/v2/voices` + `/v1/models`) so the
+    /// editor can offer pickers. Voice failures (no key, bad key, missing permission) land in `status`
+    /// with the server's message; a model failure just leaves the model as a text field. The fields
+    /// stay editable either way.
+    func refreshCatalog(for config: ProviderConfig) {
+        status = "Loading voices and models for \(config.name)…"
         let secrets = secretStore
         Task {
+            let provider: SpeechProvider
             do {
-                let provider = try ProviderFactory.makeProvider(from: config, secrets: secrets)
-                let voices = try await provider.availableVoices()
-                showFetchedVoices(voices, for: config.id)
-                let caveats = voices.filter { $0.note != nil }.count
-                status = voices.isEmpty ? "No voices returned"
-                    : "Loaded \(voices.count) voices"
-                        + (caveats > 0 ? " (\(caveats) marked ⚠︎ may not work on your plan)" : "")
+                provider = try ProviderFactory.makeProvider(from: config, secrets: secrets)
             } catch {
-                fetchedVoices = []
-                fetchedVoicesProviderID = config.id
+                fail("Couldn't load \(config.name): \(error)")
+                return
+            }
+            async let voices = Self.fetch { try await provider.availableVoices() }
+            async let models = Self.fetch { try await provider.availableModels() }
+
+            var modelNote = ""
+            switch await models {
+            case .success(let list):
+                showFetchedModels(list, for: config.id)
+                if !list.isEmpty { modelNote = " and \(list.count) models" }
+            case .failure(let error):
+                showFetchedModels([], for: config.id)
+                Log.speak.error("model catalog failed: \(String(describing: error), privacy: .public)")
+                modelNote = " (models unavailable: \(error))"
+            }
+
+            switch await voices {
+            case .success(let list):
+                showFetchedVoices(list, for: config.id)
+                let caveats = list.filter { $0.note != nil }.count
+                status = list.isEmpty ? "No voices returned" + modelNote
+                    : "Loaded \(list.count) voices" + modelNote
+                        + (caveats > 0 ? " — \(caveats) voices marked ⚠︎ may not work on your plan" : "")
+            case .failure(let error):
+                showFetchedVoices([], for: config.id)
                 fail("Couldn't fetch voices: \(error)")
             }
         }
     }
 
-    /// Publishes a fetched catalog for one profile's editor.
+    nonisolated private static func fetch<T: Sendable>(
+        _ body: @Sendable () async throws -> T
+    ) async -> Result<T, Error> {
+        do { return .success(try await body()) } catch { return .failure(error) }
+    }
+
+    /// Publishes a fetched voice catalog for one profile's editor.
     func showFetchedVoices(_ voices: [Voice], for providerID: String) {
         fetchedVoices = voices
         fetchedVoicesProviderID = providerID
+    }
+
+    /// Publishes a fetched model catalog for one profile's editor.
+    func showFetchedModels(_ models: [SpeechModel], for providerID: String) {
+        fetchedModels = models
+        fetchedModelsProviderID = providerID
+    }
+
+    // MARK: - Open at login
+
+    func refreshLaunchAtLogin() {
+        launchAtLogin = LaunchAtLogin.state
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try LaunchAtLogin.setEnabled(enabled)
+            status = enabled ? "SelectTTS will open at login" : "SelectTTS won't open at login"
+        } catch {
+            fail("Couldn't change Open at Login: \(error.localizedDescription)")
+        }
+        refreshLaunchAtLogin()
     }
 
     // MARK: - Permissions

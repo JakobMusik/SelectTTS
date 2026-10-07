@@ -60,6 +60,16 @@ public struct ElevenLabsProvider: SpeechProvider {
         return voices.isEmpty ? staticVoices : voices
     }
 
+    /// `GET {root}/v1/models`, keeping the text-to-speech models the account can use.
+    public func availableModels() async throws -> [SpeechModel] {
+        let request = try builder.makeModelListRequest(baseURL: baseURL, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw SpeechProviderError.httpStatus(http.statusCode, body: ElevenLabsErrorMessage.extract(from: data))
+        }
+        return try ElevenLabsModelList.decode(data)
+    }
+
     public func synthesize(_ request: SpeechRequest) -> AsyncThrowingStream<AudioChunk, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {

@@ -126,6 +126,14 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
         )
     }
 
+    func testModelListRequestShape() throws {
+        let req = try builder.makeModelListRequest(baseURL: URL(string: "https://api.elevenlabs.io/v1")!, apiKey: "k")
+        XCTAssertEqual(req.url?.absoluteString, "https://api.elevenlabs.io/v1/models")
+        XCTAssertEqual(req.httpMethod, "GET")
+        XCTAssertEqual(req.value(forHTTPHeaderField: "xi-api-key"), "k")
+        XCTAssertThrowsError(try builder.makeModelListRequest(apiKey: ""))
+    }
+
     func testVoiceListRequestThrowsWithoutKey() {
         XCTAssertThrowsError(try builder.makeVoiceListRequest(apiKey: "")) { error in
             XCTAssertEqual(error as? SpeechProviderError, .missingAPIKey)
@@ -232,6 +240,35 @@ final class ElevenLabsVoiceListTests: XCTestCase {
     func testThrowsOnMalformedJSON() {
         let json = #"{ "not_voices": [] }"#.data(using: .utf8)!
         XCTAssertThrowsError(try ElevenLabsVoiceList.decode(json))
+    }
+}
+
+final class ElevenLabsModelListTests: XCTestCase {
+    func testKeepsTextToSpeechModelsInOrderWithLimitsAndCost() throws {
+        let json = """
+        [
+          { "model_id": "eleven_v4_turbo", "name": "Eleven v4 Turbo", "can_do_text_to_speech": true,
+            "description": "Fast.", "maximum_text_length_per_request": 10000,
+            "model_rates": { "character_cost_multiplier": 0.5 }, "languages": [] },
+          { "model_id": "eleven_english_sts_v2", "name": "Eleven English v2", "can_do_text_to_speech": false },
+          { "model_id": "secret_alpha", "can_do_text_to_speech": true, "requires_alpha_access": true },
+          { "name": "missing id" },
+          { "model_id": "eleven_flash_v2_5", "can_do_text_to_speech": true, "description": "" }
+        ]
+        """.data(using: .utf8)!
+
+        let models = try ElevenLabsModelList.decode(json)
+        XCTAssertEqual(models.map(\.id), ["eleven_v4_turbo", "eleven_flash_v2_5"])
+        XCTAssertEqual(models[0].name, "Eleven v4 Turbo")
+        XCTAssertEqual(models[0].summary, "Fast.")
+        XCTAssertEqual(models[0].maxInputCharacters, 10000)
+        XCTAssertEqual(models[0].costMultiplier, 0.5)
+        XCTAssertEqual(models[1].name, "eleven_flash_v2_5") // name falls back to the id
+        XCTAssertNil(models[1].summary)
+    }
+
+    func testThrowsWhenNotAList() {
+        XCTAssertThrowsError(try ElevenLabsModelList.decode(Data(#"{"detail":"nope"}"#.utf8)))
     }
 }
 
@@ -386,6 +423,23 @@ final class ElevenLabsProviderTests: XCTestCase {
         XCTAssertEqual(voices.map(\.id), ["a", "b"])
         XCTAssertEqual(StubURLProtocol.requests.count, 2)
         XCTAssertEqual(StubURLProtocol.requests.first?.url?.path, "/v2/voices")
+    }
+
+    func testAvailableModelsFetchesAndFilters() async throws {
+        let list = #"[{"model_id":"eleven_v4","name":"Eleven v4","can_do_text_to_speech":true},"#
+            + #"{"model_id":"sts","can_do_text_to_speech":false}]"#
+        StubURLProtocol.respond { _ in (200, Data(list.utf8)) }
+        let models = try await provider().availableModels()
+        XCTAssertEqual(models.map(\.id), ["eleven_v4"])
+        XCTAssertEqual(StubURLProtocol.requests.first?.url?.path, "/v1/models")
+
+        StubURLProtocol.respond { _ in (401, Data(#"{"detail":{"message":"Invalid API key"}}"#.utf8)) }
+        do {
+            _ = try await provider().availableModels()
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? SpeechProviderError, .httpStatus(401, body: "Invalid API key"))
+        }
     }
 
     func testAvailableVoicesThrowsOnHTTPErrorAndMissingKey() async {

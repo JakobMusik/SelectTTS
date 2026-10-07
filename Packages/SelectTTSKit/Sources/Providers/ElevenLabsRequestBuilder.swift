@@ -106,6 +106,20 @@ public struct ElevenLabsRequestBuilder: Sendable {
         return urlRequest
     }
 
+    /// `GET {root}/v1/models` — every model, including speech-to-speech ones (filtered on decode).
+    public func makeModelListRequest(
+        baseURL: URL = defaultBaseURL,
+        apiKey: String
+    ) throws -> URLRequest {
+        guard !apiKey.isEmpty else { throw SpeechProviderError.missingAPIKey }
+        var urlRequest = URLRequest(url: Self.apiRoot(baseURL)
+            .appendingPathComponent("v1")
+            .appendingPathComponent("models"))
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+        return urlRequest
+    }
+
     /// `GET {root}/v2/voices?page_size=100[&next_page_token=…]` — the current catalog endpoint
     /// (`/v1/voices` is legacy). Paginated: pass the previous page's `next_page_token` to continue.
     public func makeVoiceListRequest(

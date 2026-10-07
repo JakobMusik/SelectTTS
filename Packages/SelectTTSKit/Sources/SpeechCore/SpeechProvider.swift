@@ -12,9 +12,17 @@ public protocol SpeechProvider: Sendable {
     /// May hit the network (cloud/local servers) or be static (system voice).
     func availableVoices() async throws -> [Voice]
 
+    /// Models the provider can synthesize with, when it publishes a catalog (ElevenLabs does);
+    /// empty means "no catalog — the model is free text". Defaults to empty.
+    func availableModels() async throws -> [SpeechModel]
+
     /// Produce audio for `request`. Chunks are delivered in order; the stream finishes after the
     /// final chunk (or throws on error).
     func synthesize(_ request: SpeechRequest) -> AsyncThrowingStream<AudioChunk, Error>
+}
+
+extension SpeechProvider {
+    public func availableModels() async throws -> [SpeechModel] { [] }
 }
 
 /// Errors common to provider adapters.
