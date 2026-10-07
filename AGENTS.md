@@ -86,6 +86,9 @@ Agents with MCP support can build, run and preview through Xcode's MCP bridge
 - **Add a speech provider:** a new `SpeechProvider`, a `ProviderKind` case, and a `ProviderFactory`
   branch. A new OpenAI-compatible backend needs no code, just a profile. LM Studio and Ollama don't
   serve TTS, so local profiles must point at a TTS server.
+- **Add or re-pin a remote package:** copy its license file into `App/Licenses/` and list it in
+  `ThirdPartyComponent.all` (`App/Settings/LicensesView.swift`) and `NOTICES.md`. The app shows
+  these texts under Settings ▸ About.
 - **Capture uses explicit strategies, not `.auto`.** `.auto` gives up when the Accessibility read
   fails, which Electron apps (VS Code, Slack) do.
 - **No App Sandbox, no Mac App Store.** Capture needs Accessibility and Apple Events, which the

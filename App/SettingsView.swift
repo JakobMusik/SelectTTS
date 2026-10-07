@@ -62,14 +62,19 @@ private struct GeneralSettingsView: View {
 }
 
 private struct AboutSettingsView: View {
+    @State private var showingLicenses = false
+
     var body: some View {
         VStack(spacing: 8) {
             Text("SelectTTS").font(.title2).bold()
             Text("Speak selected text from any app.").foregroundStyle(.secondary)
             Text("Open source · MIT License").font(.footnote).foregroundStyle(.secondary)
+            Button("Third-Party Licenses…") { showingLicenses = true }
+                .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+        .sheet(isPresented: $showingLicenses) { LicensesView() }
     }
 }
 
