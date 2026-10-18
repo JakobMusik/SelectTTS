@@ -2,8 +2,8 @@ import Foundation
 import SpeechCore
 
 /// Decodes ElevenLabs `GET {root}/v1/models` — a JSON array of `{ model_id, name, description,
-/// can_do_text_to_speech, requires_alpha_access, maximum_text_length_per_request,
-/// model_rates: { character_cost_multiplier } }` — into the text-to-speech models as
+/// can_do_text_to_speech, requires_alpha_access, maximum_text_length_per_request, can_use_style,
+/// can_use_speaker_boost, model_rates: { character_cost_multiplier } }` — into the text-to-speech models as
 /// `[SpeechModel]`, in the API's order (newest first). Speech-to-speech-only models and models that
 /// need alpha access are dropped; unknown/missing fields degrade gracefully.
 public enum ElevenLabsModelList {
@@ -18,7 +18,9 @@ public enum ElevenLabsModelList {
                     name: raw.name?.isEmpty == false ? raw.name! : raw.modelID,
                     summary: raw.description?.isEmpty == false ? raw.description : nil,
                     maxInputCharacters: raw.maximumTextLengthPerRequest,
-                    costMultiplier: raw.modelRates?.characterCostMultiplier
+                    costMultiplier: raw.modelRates?.characterCostMultiplier,
+                    supportsStyle: raw.canUseStyle,
+                    supportsSpeakerBoost: raw.canUseSpeakerBoost
                 )
             }
     }
@@ -38,6 +40,8 @@ public enum ElevenLabsModelList {
         let canDoTextToSpeech: Bool?
         let requiresAlphaAccess: Bool?
         let maximumTextLengthPerRequest: Int?
+        let canUseStyle: Bool?
+        let canUseSpeakerBoost: Bool?
         let modelRates: Rates?
 
         enum CodingKeys: String, CodingKey {
@@ -47,6 +51,8 @@ public enum ElevenLabsModelList {
             case canDoTextToSpeech = "can_do_text_to_speech"
             case requiresAlphaAccess = "requires_alpha_access"
             case maximumTextLengthPerRequest = "maximum_text_length_per_request"
+            case canUseStyle = "can_use_style"
+            case canUseSpeakerBoost = "can_use_speaker_boost"
             case modelRates = "model_rates"
         }
     }

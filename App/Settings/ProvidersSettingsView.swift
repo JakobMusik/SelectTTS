@@ -165,11 +165,17 @@ struct ProvidersSettingsView: View {
             }
 
             row("Speed") {
+                let unsupported = draft.kind == .elevenLabs
+                    && !ElevenLabsModelSupport.supportsSpeed(modelID: currentModelID)
                 HStack {
                     Slider(value: $draft.speed, in: speedRange)
                     Text(verbatim: String(format: "%.2f×", draft.speed)).monospacedDigit().frame(width: 48)
                 }
+                .disabled(unsupported)
+                if unsupported { footnote("\(currentModelName) doesn't use speed.") }
             }
+
+            if draft.kind == .elevenLabs { voiceSettingsRows }
         }
     }
 
@@ -395,10 +401,138 @@ struct ProvidersSettingsView: View {
     }
 }
 
+// MARK: - Voice settings (ElevenLabs)
+
+extension ProvidersSettingsView {
+    /// Stability, similarity, style and speaker boost for this profile; off = the voice's saved ones.
+    @ViewBuilder
+    private var voiceSettingsRows: some View {
+        row("Voice Settings") {
+            HStack {
+                Toggle("Customize for this profile", isOn: customVoiceSettings)
+                if draft.voiceSettings != nil {
+                    Spacer()
+                    Button("Reset") { startCustomVoiceSettings() }
+                        .help("Back to this voice's saved settings (ElevenLabs' defaults if they can't be loaded)")
+                }
+            }
+            footnote(draft.voiceSettings == nil
+                ? "Uses the stability, similarity and style saved with this voice on ElevenLabs."
+                : "Starts from the voice's saved settings. Save, then Test Voice to hear a change.")
+        }
+        if draft.voiceSettings != nil {
+            settingSlider(
+                "Stability", \.stability, low: "Creative", high: "Stable",
+                help: "Lower: a broader emotional range that varies between takes. "
+                    + "Higher: consistent, but can sound monotone."
+            )
+            settingSlider(
+                "Similarity", \.similarity, low: "Low", high: "High",
+                help: "How closely the output sticks to the original voice. "
+                    + "Very high values can also copy flaws in its recording.",
+                unsupported: !ElevenLabsModelSupport.supportsSimilarity(modelID: currentModelID)
+            )
+            settingSlider(
+                "Style", \.style, low: "None", high: "Exaggerated",
+                help: "Exaggerates the voice's style. Adds latency; 0 suits most text.",
+                unsupported: currentModel?.supportsStyle == false
+            )
+            row("Speaker Boost") {
+                let unsupported = currentModel?.supportsSpeakerBoost == false
+                Toggle("Boost similarity to the original speaker", isOn: speakerBoost)
+                    .disabled(unsupported)
+                    .help("Closer to the original speaker, at a little extra latency.")
+                if unsupported { footnote("\(currentModelName) doesn't use speaker boost.") }
+            }
+        }
+    }
+
+    /// A 0...1 voice setting: the slider and its value, with what each end means underneath.
+    private func settingSlider(
+        _ label: String,
+        _ keyPath: WritableKeyPath<VoiceSettings, Double?>,
+        low: String,
+        high: String,
+        help: String,
+        unsupported: Bool = false
+    ) -> some View {
+        let value = voiceSetting(keyPath)
+        return row(label) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Slider(value: value, in: VoiceSettings.range)
+                    Text(verbatim: "\(Int((value.wrappedValue * 100).rounded()))%")
+                        .monospacedDigit().frame(width: 48)
+                }
+                HStack {
+                    Text(verbatim: low)
+                    Spacer()
+                    Text(verbatim: high)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.trailing, 56) // under the slider, not the value
+            }
+            .disabled(unsupported)
+            .help(help)
+            if unsupported { footnote("\(currentModelName) doesn't use \(label.lowercased()).") }
+        }
+    }
+
+    /// The profile's model from the fetched catalog, once loaded.
+    private var currentModel: SpeechModel? {
+        fetchedModels.first { $0.id == currentModelID }
+    }
+
+    /// The model's name for notes, or its id while the catalog isn't loaded.
+    private var currentModelName: String {
+        currentModel?.name ?? currentModelID
+    }
+
+    private var customVoiceSettings: Binding<Bool> {
+        Binding(
+            get: { draft.voiceSettings != nil },
+            set: { $0 ? startCustomVoiceSettings() : (draft.voiceSettings = nil) }
+        )
+    }
+
+    private func voiceSetting(_ keyPath: WritableKeyPath<VoiceSettings, Double?>) -> Binding<Double> {
+        Binding(
+            get: {
+                draft.voiceSettings?[keyPath: keyPath]
+                    ?? ElevenLabsVoiceSettings.apiDefaults.asVoiceSettings[keyPath: keyPath] ?? 0
+            },
+            set: { draft.voiceSettings?[keyPath: keyPath] = $0 }
+        )
+    }
+
+    private var speakerBoost: Binding<Bool> {
+        Binding(
+            get: { draft.voiceSettings?.speakerBoost ?? true },
+            set: { draft.voiceSettings?.speakerBoost = $0 }
+        )
+    }
+
+    /// Shows ElevenLabs' defaults at once, then the voice's saved settings when they arrive — unless
+    /// the user has moved a slider, or switched profile or voice, in the meantime.
+    private func startCustomVoiceSettings() {
+        let placeholder = ElevenLabsVoiceSettings.apiDefaults.asVoiceSettings
+        draft.voiceSettings = placeholder
+        let config = draft
+        Task {
+            guard let saved = await env.savedVoiceSettings(for: config),
+                  draft.id == config.id, draft.voice == config.voice, draft.voiceSettings == placeholder
+            else { return }
+            draft.voiceSettings = saved
+        }
+    }
+}
+
 #Preview("Providers — ElevenLabs") {
     let profile = ProviderConfig(
         id: "preview-el", kind: .elevenLabs, name: "ElevenLabs", apiKeyKeychainRef: "apikey.preview-el",
-        model: "eleven_v4", voice: "lib1", format: .pcm, capabilities: ProviderCapabilities()
+        model: "eleven_v4", voice: "lib1", format: .pcm, capabilities: ProviderCapabilities(),
+        voiceSettings: VoiceSettings(stability: 0.35, similarity: 0.8, style: 0, speakerBoost: true)
     )
     let secrets = InMemorySecretStore()
     try? secrets.set("sk_preview_0000c95", for: "apikey.preview-el")
@@ -417,7 +551,9 @@ struct ProvidersSettingsView: View {
             name: "Eleven v4",
             summary: "Our fastest and most emotive model.",
             maxInputCharacters: 10_000,
-            costMultiplier: 1
+            costMultiplier: 1,
+            supportsStyle: false,
+            supportsSpeakerBoost: false
         ),
         SpeechModel(id: "eleven_v4_turbo", name: "Eleven v4 Turbo", maxInputCharacters: 10_000, costMultiplier: 0.5),
     ], for: profile.id)

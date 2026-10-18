@@ -72,6 +72,51 @@ final class ElevenLabsRequestBuilderTests: XCTestCase {
         XCTAssertNil(try body(normal)["voice_settings"])
     }
 
+    func testVoiceSettingsOverridesMergeIntoStoredSettings() throws {
+        let stored = ElevenLabsVoiceSettings(
+            stability: 0.2, similarityBoost: 0.9, style: 0.6, useSpeakerBoost: false, speed: 1.16
+        )
+        let req = try builder.makeRequest(
+            apiKey: "k", voiceID: "v", text: "hi", speed: 1.0,
+            voiceSettings: VoiceSettings(stability: 0.8, speakerBoost: true), storedVoiceSettings: stored
+        )
+        let settings = try XCTUnwrap(try body(req)["voice_settings"] as? [String: Any])
+        XCTAssertEqual(settings["stability"] as? Double, 0.8)
+        XCTAssertEqual(settings["use_speaker_boost"] as? Bool, true)
+        XCTAssertEqual(settings["similarity_boost"] as? Double, 0.9) // not overridden: saved value
+        XCTAssertEqual(settings["style"] as? Double, 0.6)
+        XCTAssertEqual(settings["speed"] as? Double, 1.16) // speed 1.0 keeps the voice's saved speed
+    }
+
+    func testVoiceSettingsAreClampedAndCombineWithSpeed() throws {
+        let req = try builder.makeRequest(
+            apiKey: "k", voiceID: "v", text: "hi", speed: 1.1,
+            voiceSettings: VoiceSettings(stability: 1.5, similarity: 0.3, style: -0.2, speakerBoost: false)
+        )
+        let settings = try XCTUnwrap(try body(req)["voice_settings"] as? [String: Any])
+        XCTAssertEqual(settings["stability"] as? Double, 1.0)
+        XCTAssertEqual(settings["similarity_boost"] as? Double, 0.3)
+        XCTAssertEqual(settings["style"] as? Double, 0.0)
+        XCTAssertEqual(settings["use_speaker_boost"] as? Bool, false)
+        XCTAssertEqual(try XCTUnwrap(settings["speed"] as? Double), 1.1, accuracy: 1e-9)
+    }
+
+    func testEmptyVoiceSettingsSendNothing() throws {
+        let req = try builder.makeRequest(apiKey: "k", voiceID: "v", text: "hi", voiceSettings: VoiceSettings())
+        XCTAssertNil(try body(req)["voice_settings"])
+    }
+
+    func testStoredSettingsAreNeededOnlyWhenTheOverridesLeaveAGap() {
+        typealias Builder = ElevenLabsRequestBuilder
+        let complete = VoiceSettings(stability: 0.4, similarity: 0.8, style: 0, speakerBoost: true)
+        XCTAssertFalse(Builder.needsStoredVoiceSettings(speed: 1.0, voiceSettings: nil))
+        XCTAssertFalse(Builder.needsStoredVoiceSettings(speed: 1.0, voiceSettings: VoiceSettings()))
+        XCTAssertTrue(Builder.needsStoredVoiceSettings(speed: 1.1, voiceSettings: nil))
+        XCTAssertTrue(Builder.needsStoredVoiceSettings(speed: 1.0, voiceSettings: VoiceSettings(style: 0.3)))
+        XCTAssertTrue(Builder.needsStoredVoiceSettings(speed: 1.0, voiceSettings: complete)) // saved speed
+        XCTAssertFalse(Builder.needsStoredVoiceSettings(speed: 1.1, voiceSettings: complete))
+    }
+
     func testVoiceSettingsRequestShape() throws {
         let req = try builder.makeVoiceSettingsRequest(
             baseURL: XCTUnwrap(URL(string: "https://api.elevenlabs.io/v1")), apiKey: "k", voiceID: " v1d "
@@ -272,8 +317,34 @@ final class ElevenLabsModelListTests: XCTestCase {
         XCTAssertNil(models[1].summary)
     }
 
+    func testDecodesStyleAndSpeakerBoostSupport() throws {
+        let json = Data("""
+        [
+          { "model_id": "eleven_multilingual_v2", "can_use_style": true, "can_use_speaker_boost": true },
+          { "model_id": "eleven_v4", "can_use_style": false, "can_use_speaker_boost": false },
+          { "model_id": "older" }
+        ]
+        """.utf8)
+        let models = try ElevenLabsModelList.decode(json)
+        XCTAssertEqual(models.map(\.supportsStyle), [true, false, nil])
+        XCTAssertEqual(models.map(\.supportsSpeakerBoost), [true, false, nil])
+    }
+
     func testThrowsWhenNotAList() {
         XCTAssertThrowsError(try ElevenLabsModelList.decode(Data(#"{"detail":"nope"}"#.utf8)))
+    }
+
+    func testV3AndV4IgnoreSpeedAndOnlyV3IgnoresSimilarity() {
+        for model in ["eleven_v3", "eleven_v4", " eleven_v4_turbo "] {
+            XCTAssertFalse(ElevenLabsModelSupport.supportsSpeed(modelID: model), model)
+        }
+        XCTAssertFalse(ElevenLabsModelSupport.supportsSimilarity(modelID: "eleven_v3"))
+        for model in ["eleven_v4", "eleven_v4_turbo", "eleven_multilingual_v2", "some_future_model"] {
+            XCTAssertTrue(ElevenLabsModelSupport.supportsSimilarity(modelID: model), model)
+        }
+        for model in ["eleven_multilingual_v2", "eleven_flash_v2_5", "some_future_model"] {
+            XCTAssertTrue(ElevenLabsModelSupport.supportsSpeed(modelID: model), model)
+        }
     }
 }
 
@@ -388,6 +459,53 @@ final class ElevenLabsProviderTests: XCTestCase {
         )
         XCTAssertEqual(Set(settings.keys), ["speed"])
         XCTAssertEqual(try XCTUnwrap(settings["speed"] as? Double), 0.8, accuracy: 1e-9)
+    }
+
+    func testVoiceSettingsOverrideFetchesAndMergesSavedSettings() async throws {
+        let saved = #"{"stability":0.2,"use_speaker_boost":false,"similarity_boost":0.9,"style":0.6,"speed":1.1}"#
+        StubURLProtocol.respond { request in
+            request.httpMethod == "GET" ? (200, Data(saved.utf8)) : (200, Data(repeating: 0, count: 64))
+        }
+        _ = try await collect(provider().synthesize(SpeechRequest(
+            text: "hi", voice: "voiceA", format: .pcm, voiceSettings: VoiceSettings(similarity: 0.4)
+        )))
+
+        XCTAssertEqual(StubURLProtocol.requests.map(\.httpMethod), ["GET", "POST"])
+        let sent = try XCTUnwrap(StubURLProtocol.bodies.last)
+        let settings = try XCTUnwrap(
+            try (JSONSerialization.jsonObject(with: sent) as? [String: Any])?["voice_settings"] as? [String: Any]
+        )
+        XCTAssertEqual(settings["similarity_boost"] as? Double, 0.4)
+        XCTAssertEqual(settings["stability"] as? Double, 0.2)
+        XCTAssertEqual(settings["speed"] as? Double, 1.1)
+    }
+
+    func testCompleteVoiceSettingsWithSpeedSkipTheSavedSettingsFetch() async throws {
+        StubURLProtocol.respond { _ in (200, Data(repeating: 0, count: 64)) }
+        _ = try await collect(provider().synthesize(SpeechRequest(
+            text: "hi", voice: "voiceA", format: .pcm, speed: 0.9,
+            voiceSettings: VoiceSettings(stability: 0.3, similarity: 0.8, style: 0.1, speakerBoost: true)
+        )))
+        XCTAssertEqual(StubURLProtocol.requests.map(\.httpMethod), ["POST"])
+    }
+
+    func testSavedVoiceSettingsDecodesAndSurfacesErrors() async throws {
+        StubURLProtocol.respond { _ in
+            (200, Data(#"{"stability":0.35,"similarity_boost":0.8,"style":0.1,"use_speaker_boost":true}"#.utf8))
+        }
+        let settings = try await provider().savedVoiceSettings(for: "voiceA")
+        XCTAssertEqual(
+            settings.asVoiceSettings,
+            VoiceSettings(stability: 0.35, similarity: 0.8, style: 0.1, speakerBoost: true)
+        )
+
+        StubURLProtocol.respond { _ in (401, Data(#"{"detail":{"message":"Missing voices_read"}}"#.utf8)) }
+        do {
+            _ = try await provider().savedVoiceSettings(for: "voiceA")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? SpeechProviderError, .httpStatus(401, body: "Missing voices_read"))
+        }
     }
 
     func testSynthesizeSurfacesServerErrorMessage() async {

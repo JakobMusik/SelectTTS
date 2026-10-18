@@ -12,18 +12,25 @@ public struct SpeechModel: Identifiable, Hashable, Codable, Sendable {
     public let maxInputCharacters: Int?
     /// Relative price per character (1 = the provider's standard rate), when known.
     public let costMultiplier: Double?
+    /// Whether the model uses `VoiceSettings.style` / `.speakerBoost`, when the provider says.
+    public let supportsStyle: Bool?
+    public let supportsSpeakerBoost: Bool?
 
     public init(
         id: String,
         name: String,
         summary: String? = nil,
         maxInputCharacters: Int? = nil,
-        costMultiplier: Double? = nil
+        costMultiplier: Double? = nil,
+        supportsStyle: Bool? = nil,
+        supportsSpeakerBoost: Bool? = nil
     ) {
         self.id = id
         self.name = name
         self.summary = summary
         self.maxInputCharacters = maxInputCharacters
         self.costMultiplier = costMultiplier
+        self.supportsStyle = supportsStyle
+        self.supportsSpeakerBoost = supportsSpeakerBoost
     }
 }

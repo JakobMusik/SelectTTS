@@ -348,6 +348,21 @@ final class AppEnvironment: ObservableObject {
         }
     }
 
+    /// The voice's saved stability/similarity/style/speaker boost (ElevenLabs), so a profile's custom
+    /// settings start where the voice already is. Nil when they can't be loaded (no key, a key without
+    /// Voices read, network); the editor then starts from ElevenLabs' defaults.
+    func savedVoiceSettings(for config: ProviderConfig) async -> VoiceSettings? {
+        guard config.kind == .elevenLabs, let voice = config.voice, !voice.isEmpty,
+              let provider = try? ProviderFactory.makeProvider(from: config, secrets: secretStore)
+              as? ElevenLabsProvider else { return nil }
+        do {
+            return try await provider.savedVoiceSettings(for: voice).asVoiceSettings
+        } catch {
+            Log.speak.error("saved voice settings failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     private nonisolated static func fetch<T: Sendable>(
         _ body: @Sendable () async throws -> T
     ) async -> Result<T, Error> {

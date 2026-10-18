@@ -37,13 +37,24 @@ public struct ElevenLabsRequestBuilder: Sendable {
         return abs(clamped - 1.0) > 0.001 ? clamped : nil
     }
 
+    /// Whether a request with this speed and these overrides needs the voice's saved settings: it
+    /// sends `voice_settings`, and some field of it isn't set by the overrides themselves.
+    public static func needsStoredVoiceSettings(speed: Double, voiceSettings: VoiceSettings?) -> Bool {
+        let overrides = voiceSettings ?? VoiceSettings()
+        if speedOverride(for: speed) == nil {
+            return !overrides.isEmpty // the saved speed is kept, so the voice's settings are needed
+        }
+        return !overrides.isComplete
+    }
+
     /// `POST {root}/v1/text-to-speech/{voiceID}/stream` — the streaming variant, which answers with
     /// chunked audio as it is generated (the non-`/stream` endpoint buffers the whole clip first).
     ///
-    /// A non-1.0 `speed` is sent as `voice_settings` = `storedVoiceSettings` with `speed` replaced. The
-    /// API fills every field missing from (or null in) `voice_settings` with its *default*, not the
-    /// voice's saved value (verified 2026-10-07), so a speed-only object would reset a tuned voice's
-    /// stability/similarity/style. Without stored settings it falls back to speed only.
+    /// A non-1.0 `speed` or a non-empty `voiceSettings` is sent as `voice_settings` =
+    /// `storedVoiceSettings` with those fields replaced. The API fills every field missing from (or
+    /// null in) `voice_settings` with its *default*, not the voice's saved value (verified
+    /// 2026-10-07), so a partial object would reset a tuned voice's other settings. Without stored
+    /// settings only the overridden fields are sent.
     public func makeRequest(
         baseURL: URL = defaultBaseURL,
         apiKey: String,
@@ -52,6 +63,7 @@ public struct ElevenLabsRequestBuilder: Sendable {
         modelID: String? = nil,
         outputFormat: String? = nil,
         speed: Double = 1.0,
+        voiceSettings: VoiceSettings? = nil,
         storedVoiceSettings: ElevenLabsVoiceSettings? = nil
     ) throws -> URLRequest {
         guard !apiKey.isEmpty else { throw SpeechProviderError.missingAPIKey }
@@ -77,9 +89,11 @@ public struct ElevenLabsRequestBuilder: Sendable {
             "text": text,
             "model_id": model.isEmpty ? Self.defaultModelID : model,
         ]
-        if let speedOverride = Self.speedOverride(for: speed) {
-            var settings = storedVoiceSettings ?? ElevenLabsVoiceSettings()
-            settings.speed = speedOverride
+        let speedOverride = Self.speedOverride(for: speed)
+        let overrides = voiceSettings ?? VoiceSettings()
+        if speedOverride != nil || !overrides.isEmpty {
+            var settings = (storedVoiceSettings ?? ElevenLabsVoiceSettings()).applying(overrides)
+            if let speedOverride { settings.speed = speedOverride }
             body["voice_settings"] = settings.jsonObject
         }
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])

@@ -12,7 +12,7 @@ public struct ElevenLabsProvider: SpeechProvider {
     private let staticVoices: [Voice]
     private let session: URLSession
     private let builder = ElevenLabsRequestBuilder()
-    /// Saved voice settings fetched for speed overrides, per voice id. Providers are rebuilt per
+    /// Saved voice settings fetched for overrides, per voice id. Providers are rebuilt per
     /// utterance (`TTSPipeline`), so this spans one utterance's chunks and never goes stale for long.
     private let voiceSettingsCache = VoiceSettingsCache()
 
@@ -84,14 +84,15 @@ public struct ElevenLabsProvider: SpeechProvider {
                                 + "yet — choose PCM or WAV"
                         )
                     }
-                    // A speed override must carry the voice's saved settings, or the API resets them.
-                    let stored = ElevenLabsRequestBuilder.speedOverride(for: request.speed) == nil
-                        ? nil
-                        : await storedVoiceSettings(for: request.voice)
+                    // Overrides must carry the voice's other saved settings, or the API resets them.
+                    let stored = ElevenLabsRequestBuilder.needsStoredVoiceSettings(
+                        speed: request.speed, voiceSettings: request.voiceSettings
+                    ) ? await storedVoiceSettings(for: request.voice) : nil
                     let urlRequest = try builder.makeRequest(
                         baseURL: baseURL, apiKey: apiKey,
                         voiceID: request.voice, text: request.text, modelID: request.model,
-                        outputFormat: token, speed: request.speed, storedVoiceSettings: stored
+                        outputFormat: token, speed: request.speed, voiceSettings: request.voiceSettings,
+                        storedVoiceSettings: stored
                     )
                     let (bytes, response) = try await session.bytes(for: urlRequest)
                     if let http = response as? HTTPURLResponse,
@@ -120,19 +121,24 @@ public struct ElevenLabsProvider: SpeechProvider {
         }
     }
 
-    /// The voice's saved settings, or nil if they can't be fetched (no key, no voice, a key without
-    /// voice-read permission, network) — the request then falls back to a speed-only override.
-    private func storedVoiceSettings(for voiceID: String) async -> ElevenLabsVoiceSettings? {
+    /// `GET {root}/v1/voices/{id}/settings` — the voice's saved settings. Throws on a missing key or
+    /// voice, or a failed request (with the server's message).
+    public func savedVoiceSettings(for voiceID: String) async throws -> ElevenLabsVoiceSettings {
         if let cached = voiceSettingsCache[voiceID] { return cached }
-        guard let request = try? builder.makeVoiceSettingsRequest(
-            baseURL: baseURL, apiKey: apiKey, voiceID: voiceID
-        ), let (data, response) = try? await session.data(for: request) else { return nil }
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { return nil }
-        guard let settings = try? JSONDecoder().decode(ElevenLabsVoiceSettings.self, from: data) else {
-            return nil
+        let request = try builder.makeVoiceSettingsRequest(baseURL: baseURL, apiKey: apiKey, voiceID: voiceID)
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw SpeechProviderError.httpStatus(http.statusCode, body: ElevenLabsErrorMessage.extract(from: data))
         }
+        let settings = try JSONDecoder().decode(ElevenLabsVoiceSettings.self, from: data)
         voiceSettingsCache[voiceID] = settings
         return settings
+    }
+
+    /// The voice's saved settings, or nil if they can't be fetched (no key, no voice, a key without
+    /// voice-read permission, network) — the request then sends only the overridden fields.
+    private func storedVoiceSettings(for voiceID: String) async -> ElevenLabsVoiceSettings? {
+        try? await savedVoiceSettings(for: voiceID)
     }
 
     /// Reads (a bounded prefix of) an error response body and extracts its message.

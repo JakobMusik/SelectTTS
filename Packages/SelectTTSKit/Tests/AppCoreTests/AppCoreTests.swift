@@ -48,6 +48,15 @@ final class ProviderFactoryTests: XCTestCase {
         XCTAssertEqual(req.model, "tts-1")
         XCTAssertEqual(req.format, .pcm)
         XCTAssertEqual(req.speed, 1.5)
+        XCTAssertNil(req.voiceSettings)
+
+        let tuned = ProviderConfig(
+            kind: .elevenLabs, name: "EL", voiceSettings: VoiceSettings(stability: 0.2, similarity: 0.9)
+        )
+        XCTAssertEqual(
+            ProviderFactory.makeRequest(text: "hi", config: tuned).voiceSettings,
+            VoiceSettings(stability: 0.2, similarity: 0.9)
+        )
     }
 }
 

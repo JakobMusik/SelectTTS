@@ -26,7 +26,8 @@ Content-Type: application/json
 | Hosts | `https://api.elevenlabs.io` (default), `https://api.us.elevenlabs.io`, data residency `https://api.{eu,in,sg}.residency.elevenlabs.io` |
 | `text` | Required body field |
 | `model_id` | Optional, **default `eleven_multilingual_v2`**. Live `GET /v1/models` (2026-10-07): `eleven_v4`, `eleven_v4_turbo`, `eleven_v3`, `eleven_multilingual_v2` (10k chars), `eleven_flash_v2_5` / `eleven_turbo_v2_5` (40k), `eleven_flash_v2` / `eleven_turbo_v2` (30k). Per-model cap = `maximum_text_length_per_request` |
-| Speed | `voice_settings.speed`, **0.7–1.2** (outside → 400 `invalid_voice_settings`) |
+| Speed | `voice_settings.speed`, **0.7–1.2** (outside → 400 `invalid_voice_settings`). Ignored by `eleven_v3` and `eleven_v4`/`eleven_v4_turbo` (product guide; measured 2026-10-18: v4 clips are the same length at 0.7 and 1.2) |
+| v3 / v4 settings | `GET /v1/models` reports only `can_use_style` / `can_use_speaker_boost`. Verified 2026-10-18 via `/v1/history`: v3 snaps `stability` to 0 / 0.5 / 1 (0.3 → 0.5) and v4 keeps it exactly; for v4 requests only `stability` is recorded, even after `similarity_boost: 0.2`, although the guide and the playground both offer Similarity on v4. The guide says v3 has no similarity, speed or speaker boost |
 | `voice_settings` | Overrides the voice's saved settings for one request, but **any field missing or `null` gets the API default, not the saved value** (verified 2026-10-07 via `/v1/history` settings: speed-only and speed+nulls both reset stability/similarity/style/speaker-boost). To change only speed, send the saved settings (`GET /v1/voices/{id}/settings`) with `speed` replaced |
 | `output_format` | Query param, default `mp3_44100_128`. `pcm_{8000…48000}`, `mp3_*`, `opus_48000_*`, `ulaw_8000`, `alaw_8000`; the non-stream endpoint also offers `wav_*`. `pcm_44100` needs Pro tier (403 otherwise); `pcm_24000` works on any tier and is headerless 16-bit LE mono |
 | Voice discovery | `GET /v2/voices?page_size=100[&next_page_token=…]` → `{voices, has_more, next_page_token, total_count}`; `GET /v1/voices` is now under "Legacy". Voices carry `labels` (`gender`, `accent`, `language`, …) and `verified_languages[].locale` (BCP-47, e.g. `en-GB`) |
@@ -40,7 +41,8 @@ Measured 2026-10-07 (pcm_24000, ~470 chars, `eleven_flash_v2_5`): time-to-first-
 
 **Adapter in SelectTTS** (`ElevenLabsProvider`): base URL = API root (a trailing `/v1` is tolerated);
 `synthesize` → `/stream` with `output_format=pcm_24000` and `voice_settings.speed` (clamped, omitted at
-1.0; a non-1.0 speed is merged into the voice's fetched saved settings, falling back to speed-only); refuses compressed formats (the streaming player can only consume PCM); surfaces `detail`
+1.0) plus a profile's optional stability/similarity/style/speaker-boost overrides, both merged into the voice's
+fetched saved settings (skipped when the overrides set every field), falling back to the overridden fields only; refuses compressed formats (the streaming player can only consume PCM); surfaces `detail`
 messages in `SpeechProviderError.httpStatus`; `availableVoices()` pages `/v2/voices`.
 
 ## Groq / Azure / Google / Deepgram — verified pass 2 (2026-06-13)

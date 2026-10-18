@@ -45,14 +45,16 @@ public enum ProviderFactory {
         }
     }
 
-    /// Builds a `SpeechRequest` for one chunk of text using the profile's voice/model/format/speed.
+    /// Builds a `SpeechRequest` for one chunk of text using the profile's voice/model/format/speed and
+    /// voice settings.
     public static func makeRequest(text: String, config: ProviderConfig) -> SpeechRequest {
         SpeechRequest(
             text: text,
             voice: config.voice ?? "",
             model: config.model,
             format: config.format,
-            speed: config.speed
+            speed: config.speed,
+            voiceSettings: config.voiceSettings
         )
     }
 

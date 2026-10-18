@@ -24,6 +24,9 @@ public struct ProviderConfig: Identifiable, Codable, Equatable, Sendable {
     public var format: AudioFormat
     public var speed: Double
     public var capabilities: ProviderCapabilities
+    /// Stability/similarity/style overrides (ElevenLabs); nil uses the voice's saved settings.
+    /// Optional so profiles saved before it existed still decode.
+    public var voiceSettings: VoiceSettings?
 
     public init(
         id: String = UUID().uuidString,
@@ -35,7 +38,8 @@ public struct ProviderConfig: Identifiable, Codable, Equatable, Sendable {
         voice: String? = nil,
         format: AudioFormat = .wav,
         speed: Double = 1.0,
-        capabilities: ProviderCapabilities = .openAI
+        capabilities: ProviderCapabilities = .openAI,
+        voiceSettings: VoiceSettings? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -47,6 +51,7 @@ public struct ProviderConfig: Identifiable, Codable, Equatable, Sendable {
         self.format = format
         self.speed = speed
         self.capabilities = capabilities
+        self.voiceSettings = voiceSettings
     }
 
     public var baseURL: URL? {

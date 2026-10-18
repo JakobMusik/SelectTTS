@@ -22,6 +22,25 @@ final class ProviderConfigTests: XCTestCase {
         XCTAssertEqual(decoded.baseURL, URL(string: "https://api.openai.com/v1"))
     }
 
+    func testVoiceSettingsRoundTripAndOlderProfilesStillDecode() throws {
+        let tuned = ProviderConfig(
+            kind: .elevenLabs, name: "EL",
+            voiceSettings: VoiceSettings(stability: 0.3, similarity: 0.9, style: 0, speakerBoost: false)
+        )
+        let decoded = try JSONDecoder().decode(ProviderConfig.self, from: JSONEncoder().encode(tuned))
+        XCTAssertEqual(decoded.voiceSettings, tuned.voiceSettings)
+
+        // A profile saved before `voiceSettings` existed.
+        let legacy = Data("""
+        { "id": "el", "kind": "elevenLabs", "name": "EL", "format": "pcm", "speed": 1,
+          "capabilities": { "supportsInstructions": false, "supportsSSE": false, "speedHonored": true,
+                            "maxInputCharacters": 4096, "defaultFormat": "wav" } }
+        """.utf8)
+        let old = try JSONDecoder().decode(ProviderConfig.self, from: legacy)
+        XCTAssertEqual(old.id, "el")
+        XCTAssertNil(old.voiceSettings)
+    }
+
     func testSystemDefaultIsKeyless() {
         XCTAssertEqual(ProviderConfig.systemDefault.kind, .system)
         XCTAssertNil(ProviderConfig.systemDefault.apiKeyKeychainRef)
