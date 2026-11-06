@@ -32,7 +32,9 @@ than speech can be added as modules.
    Compressed formats can't be streamed.
 
 Settings live in `AppSettings/`. Provider profiles (`ProviderConfig`) are stored in UserDefaults;
-API keys are stored only in the Keychain, and the profile keeps just a reference to them.
+API keys are stored only in the Keychain, and the profile keeps just a reference to them. Deleting a
+profile deletes its key. Each key item is owned by the exact build that saved it (self-signed, so its
+cdhash), so `KeychainSecretStore` overwrites with `SecItemUpdate`, never delete-then-add.
 
 ## Build and test
 

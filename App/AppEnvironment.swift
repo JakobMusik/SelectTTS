@@ -242,13 +242,21 @@ final class AppEnvironment: ObservableObject {
         persistConfigs()
     }
 
+    /// Removes the profile and its API key, so no orphaned Keychain entry is left behind.
     func deleteProvider(_ id: String) {
         guard id != ProviderConfig.systemDefault.id else { return } // permanent
+        let keyRef = providerConfigs.first { $0.id == id }?.apiKeyKeychainRef
         providerConfigs.removeAll { $0.id == id }
         if activeProviderID == id {
             setActiveProvider(providerConfigs.first?.id ?? ProviderConfig.systemDefault.id)
         }
         persistConfigs()
+        guard let keyRef else { return }
+        do {
+            try secretStore.delete(keyRef)
+        } catch {
+            fail("Profile deleted, but its API key couldn't be removed from the Keychain: \(error)")
+        }
     }
 
     func setActiveProvider(_ id: String) {
