@@ -12,7 +12,7 @@ concurrency:
 jobs:
   test:
     name: Build & test cores
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Swift version
@@ -27,7 +27,7 @@ jobs:
   app-build:
     name: Build app
     # The committed project uses Xcode 16 synchronized folders (objectVersion 77), and the pinned
-    # KeyboardShortcuts 2.4.0 needs Swift tools 6.1 (Xcode 16.3+) — both too new for macos-14.
+    # KeyboardShortcuts 2.4.0 needs Swift tools 6.1 (Xcode 16.3+).
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
 
   lint:
     name: Lint (informational)
-    runs-on: macos-14
+    runs-on: macos-15
     # Non-gating until the style config is hardened.
     continue-on-error: true
     steps:
