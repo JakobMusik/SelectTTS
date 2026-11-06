@@ -20,7 +20,7 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
 
     public func availableVoices() async throws -> [Voice] {
         #if canImport(AVFoundation)
-        return AVSpeechSynthesisVoice.speechVoices().map { v in
+        AVSpeechSynthesisVoice.speechVoices().map { v in
             Voice(
                 id: v.identifier,
                 name: v.name,
@@ -30,13 +30,13 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
             )
         }
         #else
-        return []
+        []
         #endif
     }
 
     public func synthesize(_ request: SpeechRequest) -> AsyncThrowingStream<AudioChunk, Error> {
         #if canImport(AVFoundation)
-        return AsyncThrowingStream { continuation in
+        AsyncThrowingStream { continuation in
             let utterance = AVSpeechUtterance(string: request.text)
             if let voice = AVSpeechSynthesisVoice(identifier: request.voice) {
                 utterance.voice = voice
@@ -60,7 +60,7 @@ public final class SystemSpeechProvider: NSObject, SpeechProvider, @unchecked Se
             }
         }
         #else
-        return AsyncThrowingStream { $0.finish(throwing: SpeechProviderError.unsupported("AVFoundation")) }
+        AsyncThrowingStream { $0.finish(throwing: SpeechProviderError.unsupported("AVFoundation")) }
         #endif
     }
 

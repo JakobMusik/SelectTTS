@@ -13,10 +13,10 @@ enum LaunchAtLogin {
 
     static var state: State {
         switch SMAppService.mainApp.status {
-        case .enabled: return .enabled
-        case .requiresApproval: return .requiresApproval
-        case .notRegistered, .notFound: return .disabled
-        @unknown default: return .disabled
+        case .enabled: .enabled
+        case .requiresApproval: .requiresApproval
+        case .notRegistered, .notFound: .disabled
+        @unknown default: .disabled
         }
     }
 

@@ -214,12 +214,12 @@ final class ElevenLabsOutputFormatTests: XCTestCase {
 
 final class ElevenLabsVoiceListTests: XCTestCase {
     func testDecodesVoiceIDNameAndLabels() throws {
-        let json = """
+        let json = Data("""
         { "voices": [
             { "voice_id": "abc123", "name": "Rachel", "labels": { "gender": "female", "language": "en" } },
             { "voice_id": "def456", "name": "Josh", "labels": { "gender": "male" } }
         ] }
-        """.data(using: .utf8)!
+        """.utf8)
 
         let voices = try ElevenLabsVoiceList.decode(json)
         XCTAssertEqual(voices.count, 2)
@@ -233,7 +233,7 @@ final class ElevenLabsVoiceListTests: XCTestCase {
     }
 
     func testDecodesV2PageCursorAndPrefersVerifiedLocale() throws {
-        let json = """
+        let json = Data("""
         { "voices": [
             { "voice_id": "JBFqnCBsd6RMkjVDRZzb", "name": "George", "category": "premade",
               "labels": { "accent": "british", "gender": "male", "language": "en" },
@@ -241,7 +241,7 @@ final class ElevenLabsVoiceListTests: XCTestCase {
             { "voice_id": "n1", "name": "River", "labels": { "accent": "american", "gender": "neutral" } }
           ],
           "has_more": true, "total_count": 40, "next_page_token": "tok2" }
-        """.data(using: .utf8)!
+        """.utf8)
 
         let page = try ElevenLabsVoiceList.decodePage(json)
         XCTAssertTrue(page.hasMore)
@@ -252,14 +252,14 @@ final class ElevenLabsVoiceListTests: XCTestCase {
     }
 
     func testLibraryVoicesCarryAPaidPlanNote() throws {
-        let json = """
+        let json = Data("""
         { "voices": [
             { "voice_id": "lib", "name": "Allison", "category": "professional",
               "sharing": { "status": "copied", "original_voice_id": "orig" } },
             { "voice_id": "pre", "name": "George", "category": "premade", "sharing": null },
             { "voice_id": "own", "name": "Mine", "category": "cloned", "sharing": { "status": "enabled" } }
         ] }
-        """.data(using: .utf8)!
+        """.utf8)
         let voices = try ElevenLabsVoiceList.decode(json)
         XCTAssertEqual(voices[0].note, ElevenLabsVoiceList.libraryVoiceNote)
         XCTAssertNil(voices[1].note)
@@ -267,11 +267,11 @@ final class ElevenLabsVoiceListTests: XCTestCase {
     }
 
     func testOddMetadataDoesNotDropTheVoice() throws {
-        let json = #"""
+        let json = Data(#"""
         { "voices": [ { "voice_id": "v1", "name": null,
                         "labels": { "gender": "female", "descriptive": null },
                         "verified_languages": "not-a-list" } ] }
-        """#.data(using: .utf8)!
+        """#.utf8)
         let page = try ElevenLabsVoiceList.decodePage(json)
         XCTAssertEqual(page.voices.count, 1)
         XCTAssertEqual(page.voices[0].name, "v1")
@@ -280,7 +280,7 @@ final class ElevenLabsVoiceListTests: XCTestCase {
     }
 
     func testFallsBackToVoiceIDWhenNameMissing() throws {
-        let json = #"{ "voices": [ { "voice_id": "xyz" } ] }"#.data(using: .utf8)!
+        let json = Data(#"{ "voices": [ { "voice_id": "xyz" } ] }"#.utf8)
         let voices = try ElevenLabsVoiceList.decode(json)
         XCTAssertEqual(voices.count, 1)
         XCTAssertEqual(voices[0].name, "xyz")
@@ -288,14 +288,14 @@ final class ElevenLabsVoiceListTests: XCTestCase {
     }
 
     func testThrowsOnMalformedJSON() {
-        let json = #"{ "not_voices": [] }"#.data(using: .utf8)!
+        let json = Data(#"{ "not_voices": [] }"#.utf8)
         XCTAssertThrowsError(try ElevenLabsVoiceList.decode(json))
     }
 }
 
 final class ElevenLabsModelListTests: XCTestCase {
     func testKeepsTextToSpeechModelsInOrderWithLimitsAndCost() throws {
-        let json = """
+        let json = Data("""
         [
           { "model_id": "eleven_v4_turbo", "name": "Eleven v4 Turbo", "can_do_text_to_speech": true,
             "description": "Fast.", "maximum_text_length_per_request": 10000,
@@ -305,7 +305,7 @@ final class ElevenLabsModelListTests: XCTestCase {
           { "name": "missing id" },
           { "model_id": "eleven_flash_v2_5", "can_do_text_to_speech": true, "description": "" }
         ]
-        """.data(using: .utf8)!
+        """.utf8)
 
         let models = try ElevenLabsModelList.decode(json)
         XCTAssertEqual(models.map(\.id), ["eleven_v4_turbo", "eleven_flash_v2_5"])

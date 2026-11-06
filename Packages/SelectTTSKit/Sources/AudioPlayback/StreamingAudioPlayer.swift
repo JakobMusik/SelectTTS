@@ -97,8 +97,8 @@ public final class StreamingAudioPlayer: AudioSink, @unchecked Sendable {
         if streamFormat == nil { try start(with: effective) }
 
         let floats = accumulator.append(pcmData)
-        guard !floats.isEmpty, let renderFormat else { return }
-        guard let buffer = Self.makeBuffer(floats: floats, format: renderFormat) else { return }
+        guard !floats.isEmpty, let renderFormat,
+              let buffer = Self.makeBuffer(floats: floats, format: renderFormat) else { return }
 
         let bufferGeneration = generation
         pendingBuffers += 1

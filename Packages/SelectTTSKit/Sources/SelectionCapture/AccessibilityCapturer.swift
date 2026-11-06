@@ -16,9 +16,9 @@ public struct AccessibilityCapturer: SelectionCapturing {
     /// Whether Accessibility permission is currently granted for this process.
     public static var isTrusted: Bool {
         #if canImport(ApplicationServices)
-        return AXIsProcessTrusted()
+        AXIsProcessTrusted()
         #else
-        return false
+        false
         #endif
     }
 
