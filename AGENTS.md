@@ -49,9 +49,9 @@ swift test --filter ProvidersTests        # one test target
 xcodebuild -project SelectTTS.xcodeproj -scheme SelectTTS \
   -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
 
-# Lint before committing
-swiftformat --lint .
-swiftlint lint --quiet
+# Lint before committing: pinned SwiftFormat + SwiftLint, the same versions CI runs
+scripts/lint.sh
+scripts/lint.sh --fix                     # apply what the tools can fix
 
 # Release: signed DMG in dist/, cask updated (see scripts/release/README.md)
 scripts/release/build-release.sh 0.2.0

@@ -44,9 +44,5 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - name: Install tools
-        run: brew install swiftlint swiftformat
-      - name: SwiftFormat (lint mode)
-        run: swiftformat --lint .
-      - name: SwiftLint
-        run: swiftlint lint --quiet
+      - name: SwiftFormat + SwiftLint (pinned versions)
+        run: scripts/lint.sh
